@@ -16,6 +16,16 @@ function youtubeDownloaderPlugin() {
     name: 'youtube-downloader-plugin',
     configureServer(server: any) {
       server.middlewares.use((req: any, res: any, next: any) => {
+        // Enable CORS for all API endpoints so deployed Spedia on GitHub Pages can communicate with local runner
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
+        res.setHeader('Access-Control-Allow-Headers', '*');
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204;
+          return res.end();
+        }
+
         const urlObj = new URL(req.url, 'http://localhost:5173');
 
         // 1. Start download task
@@ -148,6 +158,7 @@ function youtubeDownloaderPlugin() {
               'Accept-Ranges': 'bytes',
               'Content-Length': chunksize,
               'Content-Type': 'video/mp4',
+              'Access-Control-Allow-Origin': '*',
             });
             fileStream.pipe(res);
           } else {
@@ -155,6 +166,7 @@ function youtubeDownloaderPlugin() {
               'Content-Length': stat.size,
               'Content-Type': 'video/mp4',
               'Accept-Ranges': 'bytes',
+              'Access-Control-Allow-Origin': '*',
             });
             fs.createReadStream(filePath).pipe(res);
           }
