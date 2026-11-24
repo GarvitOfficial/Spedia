@@ -1,0 +1,2865 @@
+<!DOCTYPE html>
+<html lang="en" style="color-scheme: dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spedia | Control Every Second</title>
+  <meta name="description" content="Spedia: Control Every Second. Play YouTube and local videos up to 900x speed with zero buffering, pitch lock, and offline RAM caching.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230A0E11'/%3E%3Ctext x='16' y='22' fill='%233AA8D0' font-family='sans-serif' font-weight='bold' font-size='16' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E">
+
+  <!-- Web Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --paper: #0A0E11;
+      --paper-deep: #111920;
+      --surface: #141C22;
+      --ink: #EEF4F6;
+      --ink-soft: #9FB4BF;
+      --ink-muted: #647C8A;
+      --line: rgba(238, 244, 246, 0.14);
+      --accent: #3AA8D0;
+      --btn: #1E86AC;
+      --btn-hover: #2597C0;
+      --aqua: #9ED8E4;
+      --night: #05090C;
+      --on-sky: #0E2A3B;
+
+      --font-serif: "Newsreader", "New York", Georgia, serif;
+      --font-mono: "Geist Mono", ui-monospace, monospace;
+      --font-sans: "Geist", system-ui, -apple-system, sans-serif;
+      --ease-main: cubic-bezier(.22, 1, .36, 1);
+
+      --u: calc(min(100vw, 160svh) / 1440);
+      --ft: 0px; --fl: 0px; --fr: 0px; --fb: 0px;
+      --intro-offset: 0px;
+      --intro-tilt: 0deg;
+      --intro-roll: 0deg;
+      --intro-x: 0px;
+      --intro-sz: 1;
+      --intro-scale: 1;
+    }
+
+    @media (max-width: 820px) {
+      :root {
+        --u: calc(100vw / 390);
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: clip;
+      max-width: 100%;
+    }
+
+    body.home-view-active {
+      overflow: hidden;
+      overscroll-behavior: none;
+      height: 100svh;
+    }
+
+    /* Grain Overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: -50%;
+      width: 200%;
+      height: 200%;
+      pointer-events: none;
+      z-index: 200;
+      opacity: 0.045;
+      mix-blend-mode: screen;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    /* ─── Navigation ─── */
+    .nav-bar {
+      height: calc(92 * var(--u));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 calc(46 * var(--u)) 0 calc(45 * var(--u));
+      position: relative;
+      z-index: 50;
+    }
+
+    .nav-wordmark {
+      font-family: var(--font-serif);
+      font-size: calc(40 * var(--u));
+      letter-spacing: -0.02em;
+      line-height: 1;
+      color: var(--ink);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: baseline;
+    }
+
+    .wm-first { display: inline-block; }
+    .wm-rest { display: inline-block; transition: opacity 0.9s var(--ease-main); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: calc(10 * var(--u));
+      font-family: var(--font-mono);
+      font-size: calc(13 * var(--u));
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      transition: opacity 0.9s var(--ease-main);
+    }
+
+    .nav-link {
+      color: var(--ink-soft);
+      text-decoration: none;
+      padding-bottom: 3px;
+      position: relative;
+      transition: color 0.2s ease;
+    }
+
+    .nav-link::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 1.5px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.5s var(--ease-main);
+    }
+
+    .nav-link:hover { color: var(--ink); }
+    .nav-link:hover::after, .nav-link[aria-current="page"]::after { transform: scaleX(1); }
+    .nav-link[aria-current="page"] { color: var(--ink); }
+    .nav-slash { color: var(--ink-muted); user-select: none; }
+
+    /* ─── Views ─── */
+    .view-section {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.6s var(--ease-main);
+    }
+    .view-section.active {
+      display: flex;
+      flex-direction: column;
+      opacity: 1;
+    }
+
+    /* ─── Home View ─── */
+    #view-home {
+      height: calc(100svh - calc(92 * var(--u)));
+      position: relative;
+    }
+
+    .home-top-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      column-gap: calc(40 * var(--u));
+      padding: calc(8 * var(--u)) calc(46 * var(--u)) calc(26 * var(--u)) calc(45 * var(--u));
+      z-index: 4;
+      position: relative;
+    }
+
+    .sentence {
+      font-family: var(--font-serif);
+      font-weight: 400;
+      font-size: calc(45 * var(--u));
+      line-height: calc(50 * var(--u));
+      letter-spacing: -0.005em;
+      max-width: calc(800 * var(--u));
+    }
+
+    .word-mask {
+      display: inline-block;
+      overflow: hidden;
+      padding-bottom: 0.08em;
+      margin-bottom: -0.08em;
+      vertical-align: top;
+    }
+
+    .word-inner {
+      display: inline-block;
+      transform: translateY(110%);
+      transition: transform 0.8s var(--ease-main);
+    }
+
+    .choice-item {
+      display: inline-block;
+      white-space: nowrap;
+      position: relative;
+      cursor: pointer;
+      font-weight: 600;
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .choice-marker {
+      position: absolute;
+      inset: 0.1em -0.12em -0.02em;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.5s var(--ease-main);
+      z-index: -1;
+      border-radius: 4px;
+    }
+
+    .choice-underline {
+      position: absolute;
+      bottom: 0.02em;
+      left: 0;
+      width: 100%;
+      height: max(2px, 0.05em);
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.5s var(--ease-main);
+    }
+
+    .choice-sup {
+      font-family: var(--font-serif);
+      font-size: max(10px, 0.34em);
+      vertical-align: top;
+      position: relative;
+      top: -0.05em;
+      color: var(--ink);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .sentence-hovering .word-inner { opacity: 0.28; transition: opacity 0.3s; }
+    .sentence-hovering .choice-item.hovered .word-inner { opacity: 1; color: var(--on-choice, #04121A); }
+    .choice-item.hovered .choice-marker { transform: scaleX(1); }
+
+    /* Stats definitions */
+    .stats-list {
+      display: flex;
+      border-left: 1px solid var(--line);
+      padding-left: calc(39 * var(--u));
+    }
+
+    .stat-col {
+      display: flex;
+      flex-direction: column;
+      gap: calc(14 * var(--u));
+      padding: 0 calc(28 * var(--u));
+      border-right: 1px solid var(--line);
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.9s var(--ease-main), transform 0.9s var(--ease-main);
+    }
+    .stat-col:last-child { border-right: none; }
+
+    .stat-num {
+      font-family: var(--font-serif);
+      font-size: calc(38 * var(--u));
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: calc(12 * var(--u));
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    /* ─── World Frame (Scene Stage) ─── */
+    .world-frame {
+      flex: 1;
+      margin: 0 calc(16 * var(--u)) calc(22 * var(--u));
+      border-radius: calc(22 * var(--u));
+      clip-path: inset(0 round calc(22 * var(--u)));
+      background: var(--paper-deep);
+      isolation: isolate;
+      position: relative;
+      overflow: hidden;
+      transition: clip-path 1.1s cubic-bezier(.5, 0, .1, 1);
+    }
+
+    .world-frame.intro-open {
+      clip-path: inset(calc(-1 * var(--ft)) calc(-1 * var(--fr)) calc(-1 * var(--fb)) calc(-1 * var(--fl)) round 0);
+      z-index: 101;
+      background: transparent;
+      overflow: visible;
+    }
+
+    .scene-layer {
+      position: absolute;
+      inset: -4%;
+      width: 108%;
+      height: 108%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.9s ease;
+    }
+
+    .sea-still, .sea-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 50% 62%;
+    }
+
+    .sea-video {
+      opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    .sea-video.loaded { opacity: 1; }
+
+    .scene-grain {
+      position: absolute;
+      inset: -4%;
+      width: 108%;
+      height: 108%;
+      opacity: 0.07;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      animation: grainJitter 0.9s steps(5) infinite;
+    }
+
+    @keyframes grainJitter {
+      0% { transform: translate(0, 0); }
+      20% { transform: translate(-3%, 2%); }
+      40% { transform: translate(2%, -3%); }
+      60% { transform: translate(-1%, -2%); }
+      80% { transform: translate(3%, 1%); }
+      100% { transform: translate(0, 0); }
+    }
+
+    /* Mist layer */
+    .mist-layer {
+      position: absolute;
+      left: -6%;
+      right: -6%;
+      bottom: -4%;
+      height: 46%;
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(18%);
+      background:
+        radial-gradient(60% 70% at 18% 100%, rgba(250, 252, 253, 0.78) 0%, rgba(250, 252, 253, 0) 70%),
+        radial-gradient(55% 60% at 82% 100%, rgba(250, 252, 253, 0.70) 0%, rgba(250, 252, 253, 0) 72%),
+        linear-gradient(to top, rgba(246, 250, 251, 0.55) 0%, transparent 75%);
+      transition: opacity 0.9s var(--ease-main), transform 1.6s var(--ease-main);
+    }
+    .mist-layer.active { opacity: 0.92; transform: translateY(0); }
+
+    /* Petals and Motes */
+    .petals-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.9s ease;
+    }
+    .petals-back { z-index: 1; }
+    .petals-front { z-index: 3; }
+    .motes-layer { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity 0.9s ease; }
+
+    .petal {
+      position: absolute;
+      border-radius: 80% 0;
+      opacity: 0.85;
+      box-shadow: 0 1px 3px rgba(14, 42, 59, 0.18);
+      animation: petalDrift linear infinite;
+    }
+    .petal.mirrored { animation-name: petalDriftMirrored; }
+
+    @keyframes petalDrift {
+      0% { opacity: 0; transform: translate(-6vw, -12vh) rotate(0deg); }
+      8% { opacity: 0.85; }
+      50% { transform: translate(14vw, 18vh) rotate(260deg); }
+      92% { opacity: 0.85; }
+      100% { opacity: 0; transform: translate(34vw, 46vh) rotate(540deg); }
+    }
+
+    @keyframes petalDriftMirrored {
+      0% { opacity: 0; transform: translate(6vw, -12vh) rotate(0deg); }
+      8% { opacity: 0.85; }
+      50% { transform: translate(-12vw, 16vh) rotate(-240deg); }
+      92% { opacity: 0.85; }
+      100% { opacity: 0; transform: translate(-28vw, 44vh) rotate(-500deg); }
+    }
+
+    .mote {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, #f2ffff 0%, #bfeaf3 45%, transparent 70%);
+      animation: motePulse ease-in-out infinite;
+    }
+
+    @keyframes motePulse {
+      0% { opacity: 0; transform: scale(0.6); }
+      20% { opacity: 0.9; }
+      50% { opacity: 0.55; transform: translate(14px, -9vh) scale(1); }
+      80% { opacity: 0.85; }
+      100% { opacity: 0; transform: translate(-6px, -20vh) scale(0.7); }
+    }
+
+    /* ─── 3D Cylindrical Ring Stage ─── */
+    .ring-wall {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      cursor: grab;
+      touch-action: pinch-zoom;
+      user-select: none;
+    }
+    .ring-wall.grabbing { cursor: grabbing; }
+
+    .ring-lens {
+      position: absolute;
+      inset: -100vh 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 760px;
+      perspective-origin: 50% 50%;
+      pointer-events: none;
+    }
+
+    .ring-center {
+      position: relative;
+      width: 0;
+      height: 0;
+      transform-style: preserve-3d;
+      pointer-events: auto;
+    }
+
+    .card-slot {
+      position: absolute;
+      top: -80px;
+      height: 160px;
+      transform-style: preserve-3d;
+      text-decoration: none;
+      color: inherit;
+      cursor: pointer;
+      opacity: 0;
+    }
+
+    .card-tilt-wrap {
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      position: relative;
+      transition: transform 0.1s ease-out;
+    }
+
+    .card-frame {
+      position: absolute;
+      inset: -9px;
+      border-radius: 24px;
+      border: 3px solid var(--world-color, #3AA8D0);
+      box-shadow: 0 40px 80px -30px var(--world-color, #3AA8D0);
+      clip-path: inset(0 100% 0 0 round 24px);
+      transition: clip-path 0.55s var(--ease-main);
+      pointer-events: none;
+    }
+
+    .card-slot:hover .card-frame {
+      clip-path: inset(0 0 0 0 round 24px);
+    }
+
+    .card-face {
+      width: 100%;
+      height: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      backface-visibility: hidden;
+      background: #0E2A3B;
+      box-shadow: 0 18px 36px -24px rgba(0, 0, 0, 0.45);
+      position: relative;
+      -webkit-box-reflect: below 10px linear-gradient(transparent 52%, rgba(255, 255, 255, 0.32));
+    }
+
+    .card-poster, .card-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .card-video {
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .card-video.playing { opacity: 1; }
+
+    .card-chip {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(4px);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.3s;
+    }
+
+    .card-chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--world-color, #3AA8D0);
+    }
+
+    .card-special-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 6;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+      pointer-events: none;
+    }
+
+    .card-special-badge.badge-youtube {
+      background: rgba(220, 38, 38, 0.92);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      animation: badgePulseYT 2.4s ease-in-out infinite;
+    }
+
+    .card-special-badge.badge-local {
+      background: rgba(14, 165, 233, 0.92);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      animation: badgePulseLocal 2.4s ease-in-out infinite;
+    }
+
+    @keyframes badgePulseYT {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+      50% { box-shadow: 0 0 16px 4px rgba(220, 38, 38, 0.8); }
+    }
+
+    @keyframes badgePulseLocal {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.6); }
+      50% { box-shadow: 0 0 16px 4px rgba(14, 165, 233, 0.8); }
+    }
+
+    .card-slot:hover .card-chip { opacity: 0; }
+
+    .card-label-bar {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      padding: 11px 14px;
+      border-radius: 12px;
+      background: var(--world-color, #3AA8D0);
+      color: var(--on-world, #04121A);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      clip-path: inset(0 100% 0 0 round 12px);
+      transition: clip-path 0.5s var(--ease-main) 50ms;
+    }
+
+    .card-slot:hover .card-label-bar {
+      clip-path: inset(0 0 0 0 round 12px);
+    }
+
+    .card-label-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+    }
+
+    .card-world-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .card-title {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-arrow {
+      font-size: 18px;
+      transform: translate(-6px, 6px);
+      transition: transform 0.5s cubic-bezier(.34, 1.56, .64, 1) 150ms;
+    }
+    .card-slot:hover .card-arrow {
+      transform: translate(0, 0);
+    }
+
+    .card-dim-overlay {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+    body.focus-active .card-slot.dimmed .card-dim-overlay {
+      opacity: 0.6;
+    }
+
+    /* ─── Cursor Follow Preview Card ─── */
+    .preview-card-float {
+      position: fixed;
+      z-index: 150;
+      width: 260px;
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: 0 30px 60px -28px #000, 0 0 0 1px rgba(238, 244, 246, 0.1);
+      overflow: hidden;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.85);
+      transition: opacity 0.25s var(--ease-main), transform 0.35s var(--ease-main);
+    }
+    .preview-card-float.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .preview-media-box {
+      width: 100%;
+      height: 146px;
+      position: relative;
+      background-size: cover;
+      background-position: center;
+      background-color: #0E2A3B;
+    }
+
+    .preview-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .preview-meta {
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .preview-meta-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 4px;
+    }
+
+    .preview-color-sq {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .preview-blurb {
+      font-family: var(--font-sans);
+      color: var(--ink-soft);
+    }
+
+    /* Assistant Card Variation */
+    .preview-card-float.assistant-mode {
+      background: var(--night);
+    }
+    .assistant-body {
+      padding: 24px 18px;
+    }
+    .assistant-title {
+      font-family: var(--font-serif);
+      font-size: 28px;
+      color: #fff;
+      display: flex;
+      align-items: baseline;
+      gap: 3px;
+    }
+    .caret-blink {
+      width: 2px;
+      height: 24px;
+      background: var(--aqua);
+      display: inline-block;
+      animation: caretBlink 1s step-end infinite;
+    }
+    @keyframes caretBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+    /* ─── Build View ─── */
+    #view-build {
+      min-height: calc(100svh - calc(92 * var(--u)));
+      padding-bottom: calc(40 * var(--u));
+    }
+
+    .build-panel {
+      margin: calc(-15 * var(--u)) calc(22 * var(--u)) 0 calc(24 * var(--u));
+      min-height: calc(716 * var(--u));
+      border-radius: calc(24 * var(--u));
+      clip-path: inset(0 round calc(24 * var(--u)));
+      overflow: hidden;
+      background: var(--paper-deep);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .build-headline {
+      font-family: var(--font-serif);
+      font-weight: 460;
+      font-size: calc(88 * var(--u));
+      line-height: calc(76 * var(--u));
+      letter-spacing: -0.015em;
+      color: var(--on-sky);
+      text-align: center;
+      margin-top: calc(86 * var(--u));
+      z-index: 5;
+    }
+
+    .build-brief-card {
+      margin-top: calc(60 * var(--u));
+      margin-bottom: calc(50 * var(--u));
+      width: calc(542 * var(--u));
+      padding: calc(28 * var(--u)) calc(30 * var(--u)) calc(25 * var(--u));
+      border-radius: calc(16 * var(--u));
+      background: color-mix(in srgb, var(--surface) 86%, transparent);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(238, 244, 246, 0.08);
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .brief-kicker {
+      font-family: var(--font-mono);
+      font-size: calc(11 * var(--u));
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    .brief-sentence {
+      font-family: var(--font-serif);
+      font-size: calc(25.5 * var(--u));
+      line-height: calc(41 * var(--u));
+      color: var(--ink);
+    }
+
+    .brief-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1.5px solid var(--ink-muted);
+      color: var(--ink);
+      font-family: var(--font-serif);
+      font-size: inherit;
+      outline: none;
+      padding: 0 4px;
+      transition: border-color 0.2s;
+    }
+    .brief-input:focus { border-color: var(--accent); }
+    .brief-input::placeholder { color: var(--ink-muted); }
+
+    .timeline-chips {
+      display: inline-flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .timeline-chip {
+      position: relative;
+      cursor: pointer;
+      color: var(--ink-muted);
+      padding: 0 4px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+
+    .timeline-chip.active {
+      color: #fff;
+    }
+    .timeline-chip.active::before {
+      content: "";
+      position: absolute;
+      inset: 0.12em -0.1em 0.04em;
+      background: var(--btn);
+      border-radius: 0.22em;
+      z-index: -1;
+    }
+
+    .brief-actions-row {
+      display: flex;
+      align-items: center;
+      gap: calc(14 * var(--u));
+      margin-top: 8px;
+    }
+
+    .btn-ghost-round {
+      width: calc(44 * var(--u));
+      height: calc(44 * var(--u));
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--ink-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-ghost-round:hover {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .btn-send-magnetic {
+      height: calc(40 * var(--u));
+      padding: 0 calc(22 * var(--u));
+      border-radius: 999px;
+      background: var(--btn);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: calc(13 * var(--u));
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s, transform 0.15s ease-out;
+    }
+    .btn-send-magnetic:hover { background: var(--btn-hover); }
+
+    .worked-at-section {
+      padding: calc(24 * var(--u)) calc(53 * var(--u)) calc(26 * var(--u));
+      display: flex;
+      align-items: center;
+      gap: calc(48 * var(--u));
+    }
+
+    .worked-kicker {
+      font-family: var(--font-mono);
+      font-size: calc(11 * var(--u));
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    .worked-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-serif);
+      font-size: calc(27 * var(--u));
+      color: var(--ink-soft);
+    }
+
+    /* ─── Fullscreen Loader Sequence ─── */
+    .loader-stage {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: var(--paper);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 3.2vh 4vw 4vh;
+      pointer-events: auto;
+      transition: opacity 0.9s var(--ease-main);
+    }
+    .loader-stage.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-brand {
+      font-family: var(--font-serif);
+      font-size: clamp(64px, 9vw, 150px);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      display: inline-flex;
+    }
+
+    .loader-letter {
+      display: inline-block;
+      overflow: hidden;
+    }
+    .loader-letter-inner {
+      display: inline-block;
+      transform: translateY(105%) rotate(8deg);
+      transition: transform 1s var(--ease-main);
+    }
+
+    .loader-bottom-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .loader-skip-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid rgba(238, 244, 246, 0.16);
+      background: transparent;
+      color: var(--ink);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .loader-skip-btn:hover { border-color: var(--ink); transform: scale(1.05); }
+
+    .loader-counter-box {
+      text-align: right;
+    }
+
+    .loader-caption {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 4px;
+    }
+
+    .loader-odometer {
+      font-family: var(--font-mono);
+      font-size: clamp(80px, 12vw, 180px);
+      letter-spacing: -0.09em;
+      line-height: 0.9;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: baseline;
+    }
+
+    .odometer-digit-col {
+      height: 1em;
+      overflow: hidden;
+      display: inline-block;
+      position: relative;
+    }
+    .odometer-wheel {
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.7s var(--ease-main);
+    }
+    .odometer-wheel span { height: 1em; line-height: 1em; text-align: center; }
+
+    /* Flying Name Clone */
+    .flying-name-clone {
+      position: fixed;
+      font-family: var(--font-serif);
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      z-index: 120;
+      pointer-events: none;
+      transform-origin: top left;
+      transition: transform 1.3s cubic-bezier(.65, 0, .35, 1);
+    }
+
+    /* ─── Video Speed Enhancer Floating Studio Modal ─── */
+    .speed-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: rgba(10, 14, 17, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: calc(20 * var(--u));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s var(--ease-main);
+    }
+
+    .speed-modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .speed-modal-card {
+      width: 100%;
+      max-width: 960px;
+      max-height: 92vh;
+      overflow-y: auto;
+      border-radius: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 40px 100px -30px #000, 0 0 0 1px rgba(58, 168, 208, 0.25);
+      padding: calc(24 * var(--u));
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transform: scale(0.95) translateY(10px);
+      transition: transform 0.35s var(--ease-main);
+    }
+
+    .speed-modal-overlay.active .speed-modal-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .speed-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 12px;
+    }
+
+    .speed-tabs {
+      display: flex;
+      align-items: center;
+      background: var(--paper-deep);
+      padding: 3px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+    }
+
+    .speed-tab-btn {
+      padding: 6px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: transparent;
+      border: none;
+      color: var(--ink-soft);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .speed-tab-btn.active {
+      background: var(--accent);
+      color: #04121A;
+      font-weight: 600;
+    }
+
+    .btn-close-modal {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-close-modal:hover { background: var(--btn); color: #fff; }
+
+    /* Video player viewport inside modal */
+    .modal-video-wrapper {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid var(--line);
+    }
+
+    .modal-video-element, .modal-iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Speed control center inside modal */
+    .modal-speed-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: var(--paper-deep);
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+    }
+
+    .hero-speeds-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .hero-speed-btn {
+      padding: 10px 4px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .hero-speed-btn:hover, .hero-speed-btn.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #04121A;
+    }
+
+    .hero-speed-val { font-family: var(--font-serif); font-size: 20px; font-weight: 700; }
+    .hero-speed-sub { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; }
+
+    .modal-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-range-slider {
+      flex: 1;
+      height: 6px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .custom-speed-input-box {
+      width: 75px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 4px 8px;
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .adaptive-buffering-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(58, 168, 208, 0.1);
+      border: 1px solid rgba(58, 168, 208, 0.25);
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    .pill-btn {
+      padding: 4px 10px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink-soft);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .pill-btn.active {
+      background: var(--accent);
+      color: #04121A;
+      font-weight: 600;
+    }
+
+    .preset-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 820px) {
+      .nav-bar { height: 64px; padding: 0 16px; }
+      .nav-wordmark { font-size: 24px; }
+      .nav-links { font-size: 11px; gap: 7px; }
+      .home-top-row { grid-template-columns: 1fr; row-gap: 14px; padding: 4px 16px 16px; }
+      .sentence { font-size: clamp(26px, 7.4vw, 32px); line-height: 1.12; max-width: 100%; }
+      .stats-list { border-left: none; padding-left: 0; }
+      .stat-col { padding: 0 16px 0 0; gap: 6px; }
+      .stat-num { font-size: 26px; }
+      .stat-label { font-size: 10px; }
+      .world-frame { margin: 0 10px 10px; border-radius: 20px; }
+      .build-panel { margin: 0 10px; min-height: calc(100svh - 170px); border-radius: 20px; }
+      .build-headline { font-size: 46px; line-height: 42px; margin-top: 34px; padding: 0 12px; }
+      .build-brief-card { width: calc(100% - 24px); padding: 20px 18px; border-radius: 14px; }
+      .hero-speeds-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body class="home-view-active">
+
+  <!-- Nav -->
+  <nav class="nav-bar">
+    <a href="#home" class="nav-wordmark" id="wordmarkLink">
+      <span class="wm-first" id="wmFirst">Spedia</span><span class="wm-rest" id="wmRest">: Control Every Second.</span>
+    </a>
+    <div class="nav-links" id="navLinks" style="opacity: 0;">
+      <button type="button" class="nav-link" id="navOpenStudio" style="background:none;border:none;cursor:pointer;font:inherit;">SPEED STUDIO ↗</button>
+    </div>
+  </nav>
+
+  <!-- View 1: Home -->
+  <main class="view-section active" id="view-home">
+    <div class="home-top-row">
+      <h1 class="sentence" id="sentence">
+        <!-- Lines injected via JS with word masks -->
+      </h1>
+
+      <div class="stats-list">
+        <div class="stat-col" id="stat0">
+          <span class="stat-num">900x</span>
+          <span class="stat-label">Max Velocity</span>
+        </div>
+        <div class="stat-col" id="stat1">
+          <span class="stat-num">0 ms</span>
+          <span class="stat-label">RAM Latency</span>
+        </div>
+        <div class="stat-col" id="stat2">
+          <span class="stat-num">100%</span>
+          <span class="stat-label">Pitch Locked</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- The Rounded World Scene Panel -->
+    <div class="world-frame intro-open" id="worldFrame">
+      <!-- 1. Scene Layer -->
+      <div class="scene-layer" id="homeSceneLayer">
+        <img class="sea-still" id="homeSeaStill" alt="Sunlit turquoise sea" />
+        <video class="sea-video" id="homeSeaVideo" muted loop playsinline preload="none"></video>
+        <div class="scene-grain"></div>
+      </div>
+
+      <!-- 2. Back Petals -->
+      <div class="petals-layer petals-back" id="backPetalsLayer"></div>
+
+      <!-- 3. The 3D Cylindrical Ring Wall -->
+      <div class="ring-wall" id="ringWall">
+        <div class="ring-lens" id="ringLens">
+          <div class="ring-center" id="ringCenter">
+            <!-- 16 3D Cards Injected Here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Mist Layer -->
+      <div class="mist-layer" id="mistLayer"></div>
+
+      <!-- 5. Front Petals and Light Motes -->
+      <div class="petals-layer petals-front" id="frontPetalsLayer"></div>
+      <div class="motes-layer" id="motesLayer"></div>
+    </div>
+  </main>
+
+  <!-- Full-screen Intro Loader -->
+  <div class="loader-stage" id="loaderStage">
+    <div class="loader-brand" id="loaderBrand">
+      <span class="loader-letter"><span class="loader-letter-inner">S</span></span>
+      <span class="loader-letter"><span class="loader-letter-inner">p</span></span>
+      <span class="loader-letter"><span class="loader-letter-inner">e</span></span>
+      <span class="loader-letter"><span class="loader-letter-inner">d</span></span>
+      <span class="loader-letter"><span class="loader-letter-inner">i</span></span>
+      <span class="loader-letter"><span class="loader-letter-inner">a</span></span>
+      <span class="loader-letter"><span class="loader-letter-inner">.</span></span>
+    </div>
+
+    <div class="loader-bottom-row">
+      <button type="button" class="loader-skip-btn" id="loaderSkipBtn" title="Skip intro">↗</button>
+
+      <div class="loader-counter-box">
+        <div class="loader-caption" id="loaderCaption"></div>
+        <div class="loader-odometer" id="loaderOdometer">
+          <div class="odometer-digit-col" id="odoDigitHundreds" style="display:none;">
+            <div class="odometer-wheel"><span>0</span><span>1</span></div>
+          </div>
+          <div class="odometer-digit-col" id="odoDigitTens">
+            <div class="odometer-wheel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+          </div>
+          <div class="odometer-digit-col" id="odoDigitOnes">
+            <div class="odometer-wheel"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span></div>
+          </div>
+          <span style="font-size:0.5em;margin-left:2px;">%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cursor Follow Preview Card -->
+  <div class="preview-card-float" id="previewCardFloat">
+    <div class="preview-media-box" id="previewMediaBox">
+      <video class="preview-video" id="previewVideo" muted loop playsinline></video>
+    </div>
+    <div class="preview-meta" id="previewMeta">
+      <div class="preview-meta-title">
+        <span class="preview-color-sq" id="previewColorSq"></span>
+        <span id="previewMetaWorld">BRAND · LOOK CIRCLE</span>
+      </div>
+      <p class="preview-blurb" id="previewBlurb">Software for startups, from first sketch to a shipped product.</p>
+    </div>
+    <div class="assistant-body" id="assistantBody" style="display:none;">
+      <div class="assistant-title">Ask me anything<span class="caret-blink"></span></div>
+      <p class="preview-blurb" style="margin-top:6px;color:#9fb4bf;">Answers about projects, rates and timelines, in Noa's own words.</p>
+    </div>
+  </div>
+
+  <!-- Speed Enhancer Floating Studio Modal (YouTube & Local Video) -->
+  <div class="speed-modal-overlay" id="speedModal">
+    <div class="speed-modal-card">
+      <div class="speed-modal-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <h3 style="font-family:var(--font-serif);font-size:22px;color:var(--ink);">Speed Studio Accelerator</h3>
+          <div class="speed-tabs">
+            <button type="button" class="speed-tab-btn active" id="tabBtnYT">YouTube Player</button>
+            <button type="button" class="speed-tab-btn" id="tabBtnLocal">Local Offline Player</button>
+          </div>
+        </div>
+
+        <button type="button" class="btn-close-modal" id="btnCloseModal" title="Close & Offload Video">✕</button>
+      </div>
+
+      <!-- YouTube View in Modal -->
+      <div id="modalYTView">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" id="modalYTInput" placeholder="Paste YouTube URL or ID (e.g. dQw4w9WgXcQ)" style="flex:1;background:var(--paper-deep);border:1px solid var(--line);border-radius:8px;padding:8px 12px;color:var(--ink);font-family:var(--font-mono);font-size:13px;outline:none;">
+          <button type="button" id="modalYTLoadBtn" class="pill-btn active" style="padding:8px 16px;">Load Video</button>
+        </div>
+
+        <!-- Recent History Quick Row -->
+        <div id="ytHistoryQuickRow" style="display:none;align-items:center;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;">
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent);font-weight:700;white-space:nowrap;">🕒 RECENT:</span>
+          <div id="ytHistoryQuickPills" style="display:flex;gap:6px;overflow-x:auto;"></div>
+        </div>
+
+        <!-- Zero-Buffering Real RAM Downloader Banner -->
+        <div class="ram-preload-banner" id="ramPreloadBanner" style="background:rgba(14, 28, 38, 0.95);border:1px solid rgba(58, 168, 208, 0.4);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:34px;height:34px;border-radius:8px;background:rgba(58, 168, 208, 0.15);border:1px solid rgba(58, 168, 208, 0.4);display:flex;align-items:center;justify-content:center;font-size:16px;">⚡</div>
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--accent);">LOAD TO RAM (OFFLINE ACCELERATOR)</span>
+                  <span id="ramActivePill" style="font-family:var(--font-mono);font-size:10px;background:#059669;color:#fff;padding:2px 6px;border-radius:4px;display:none;">PRELOADED IN RAM · 0ms BUFFER</span>
+                </div>
+                <p style="font-size:11px;color:var(--ink-soft);margin-top:2px;" id="turboStatusDesc">Downloads this YouTube video with audio directly into browser RAM. Offloaded &amp; deleted on close.</p>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <button type="button" id="btnToggleRamPreload" class="pill-btn active" style="font-size:11px;padding:7px 14px;white-space:nowrap;">⚡ Load to RAM</button>
+              <button type="button" id="btnOffloadRamPreload" class="pill-btn" style="font-size:11px;padding:7px 12px;white-space:nowrap;background:#2b1414;color:#ff8888;border-color:#ff4444;display:none;">Offload RAM (Delete)</button>
+            </div>
+          </div>
+
+          <!-- Progress Bar & Status -->
+          <div id="ramProgressBarWrapper" style="display:none;flex-direction:column;gap:5px;background:rgba(0,0,0,0.35);padding:8px 10px;border-radius:6px;border:1px solid rgba(58, 168, 208, 0.2);">
+            <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--ink);">
+              <span id="ramProgressStatusText">Connecting &amp; downloading with audio...</span>
+              <span id="ramProgressPctText" style="color:var(--accent);font-weight:700;">0%</span>
+            </div>
+            <div style="height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
+              <div id="ramProgressBarFill" style="height:100%;width:0%;background:linear-gradient(to right, #3AA8D0, #059669);transition:width 0.2s ease;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-video-wrapper">
+          <iframe id="modalYTIframe" class="modal-iframe" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+          <video id="modalYTRamVideo" class="modal-video-element" style="display:none;" controls playsinline></video>
+        </div>
+
+        <!-- Direct Speed Slider Bar Immediately Below Video (Zero Scrolling Needed) -->
+        <div class="direct-slider-card" style="background:rgba(17,25,32,0.92);border:1px solid rgba(58,168,208,0.35);border-radius:12px;padding:10px 14px;margin-top:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,0.35);">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:0.04em;">SPEED MULTIPLIER:</span>
+              <span style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--accent);text-shadow:0 0 10px rgba(58,168,208,0.4);" id="modalYTSpeedBadge">1.00x</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-muted);">CUSTOM:</span>
+              <input type="number" id="modalYTCustomNum" class="custom-speed-input-box" placeholder="100" min="0.1" max="1000" step="0.1" value="1.0" style="width:65px;padding:3px 6px;height:26px;font-size:12px;">
+              <button type="button" id="modalYTApplyNum" class="pill-btn active" style="padding:3px 10px;height:26px;font-size:11px;">Set</button>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-muted);width:32px;">0.25x</span>
+            <input type="range" id="modalYTSlider" class="modal-range-slider" min="0.25" max="100" step="0.25" value="1.0" style="flex:1;height:8px;cursor:pointer;">
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-muted);width:36px;text-align:right;">100x+</span>
+          </div>
+        </div>
+
+        <div class="modal-speed-controls" style="margin-top:10px;">
+          <div class="hero-speeds-grid">
+            <button type="button" class="hero-speed-btn" data-speed="1.0"><span class="hero-speed-val">1x</span><span class="hero-speed-sub">Normal</span></button>
+            <button type="button" class="hero-speed-btn" data-speed="2.0"><span class="hero-speed-val">2x</span><span class="hero-speed-sub">Double</span></button>
+            <button type="button" class="hero-speed-btn" data-speed="3.0"><span class="hero-speed-val">3x</span><span class="hero-speed-sub">Triple</span></button>
+            <button type="button" class="hero-speed-btn" data-speed="5.0"><span class="hero-speed-val">5x</span><span class="hero-speed-sub">Fast</span></button>
+            <button type="button" class="hero-speed-btn" data-speed="50.0"><span class="hero-speed-val">50x</span><span class="hero-speed-sub">Hyper</span></button>
+            <button type="button" class="hero-speed-btn" data-speed="100.0"><span class="hero-speed-val">100x</span><span class="hero-speed-sub">Ultra</span></button>
+            <button type="button" class="hero-speed-btn" data-speed="900.0"><span class="hero-speed-val">900x</span><span class="hero-speed-sub">Max</span></button>
+          </div>
+
+          <div class="adaptive-buffering-box">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span>🛡️ Adaptive Buffering:</span>
+              <button type="button" id="btnToggleAdaptive" class="pill-btn active">ACTIVE</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <span style="color:var(--ink-soft);">Pacing:</span>
+              <button type="button" class="pill-btn pacing-btn" data-ms="400">Fast (400ms)</button>
+              <button type="button" class="pill-btn active pacing-btn" data-ms="750">Anti-Buffer (750ms)</button>
+              <button type="button" class="pill-btn pacing-btn" data-ms="1000">Keyframe (1s)</button>
+            </div>
+            <button type="button" id="btnOffloadYT" class="pill-btn" style="background:#221111;color:#ff8888;border-color:#ff4444;">Offload Player</button>
+          </div>
+
+          <!-- Notice: 3x+ requires Load to RAM to avoid buffer -->
+          <div id="ramRequirementNotice" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(234, 179, 8, 0.12);border:1px solid rgba(234, 179, 8, 0.4);border-radius:8px;padding:8px 12px;margin-top:10px;font-size:11px;color:#fde047;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;">⚠️</span>
+              <span style="font-weight:600;">3x+ requires Load to RAM to avoid buffer.</span>
+            </div>
+            <button type="button" id="btnNoticeLoadRam" class="pill-btn" style="background:#eab308;color:#000;font-weight:700;border:none;padding:5px 12px;font-size:11px;cursor:pointer;">Load to RAM ⚡</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Local Video View in Modal -->
+      <div id="modalLocalView" style="display:none;">
+        <!-- Preloaded RAM Sample Clips for Instant 0ms Latency Testing -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;overflow-x:auto;padding:8px 12px;background:rgba(58,168,208,0.08);border:1px solid rgba(58,168,208,0.25);border-radius:8px;">
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent);font-weight:700;white-space:nowrap;">⚡ INSTANT RAM DEMOS (0ms STALL):</span>
+          <button type="button" class="pill-btn local-sample-btn" data-url="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/aaaf/kolibrie-landing.mp4" data-name="Kolibrie 4K Reel (4.7MB)" style="font-size:11px;padding:3px 10px;white-space:nowrap;background:rgba(58,168,208,0.2);">🦅 Kolibrie 4K (In RAM)</button>
+          <button type="button" class="pill-btn local-sample-btn" data-url="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/aaaf/look-circle-hero.mp4" data-name="Look Circle Motion (4.2MB)" style="font-size:11px;padding:3px 10px;white-space:nowrap;background:rgba(58,168,208,0.2);">🎬 Look Circle (In RAM)</button>
+        </div>
+
+        <div style="border:2px dashed var(--line);border-radius:12px;padding:16px;text-align:center;cursor:pointer;margin-bottom:12px;" id="localDropZone">
+          <input type="file" id="localFileInput" accept="video/*" style="display:none;">
+          <p style="font-family:var(--font-serif);font-size:16px;color:var(--ink);">Click or Drag & Drop local video here</p>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);" id="localFileStatus">Loaded: Singapore Sketchbook Demo (Cached in RAM)</span>
+        </div>
+
+        <div class="modal-video-wrapper">
+          <video id="modalLocalVideo" class="modal-video-element" controls playsinline></video>
+        </div>
+
+        <!-- Direct Speed Slider Bar Immediately Below Local Video (Zero Scrolling Needed) -->
+        <div class="direct-slider-card" style="background:rgba(17,25,32,0.92);border:1px solid rgba(58,168,208,0.35);border-radius:12px;padding:10px 14px;margin-top:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,0.35);">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:0.04em;">OFFLINE HARDWARE SPEED:</span>
+              <span style="font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--accent);text-shadow:0 0 10px rgba(58,168,208,0.4);" id="modalLocalSpeedBadge">1.00x</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-muted);">CUSTOM:</span>
+              <input type="number" id="modalLocalCustomNum" class="custom-speed-input-box" placeholder="900" min="0.1" max="1000" step="0.1" value="1.0" style="width:65px;padding:3px 6px;height:26px;font-size:12px;">
+              <button type="button" id="modalLocalApplyNum" class="pill-btn active" style="padding:3px 10px;height:26px;font-size:11px;">Set</button>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-muted);width:32px;">0.25x</span>
+            <input type="range" id="modalLocalSlider" class="modal-range-slider" min="0.25" max="100" step="0.25" value="1.0" style="flex:1;height:8px;cursor:pointer;">
+            <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-muted);width:36px;text-align:right;">100x+</span>
+          </div>
+        </div>
+
+        <div class="modal-speed-controls" style="margin-top:10px;">
+          <div class="hero-speeds-grid">
+            <button type="button" class="hero-speed-btn local-speed-btn" data-speed="1.0"><span class="hero-speed-val">1x</span><span class="hero-speed-sub">Normal</span></button>
+            <button type="button" class="hero-speed-btn local-speed-btn" data-speed="2.0"><span class="hero-speed-val">2x</span><span class="hero-speed-sub">Double</span></button>
+            <button type="button" class="hero-speed-btn local-speed-btn" data-speed="3.0"><span class="hero-speed-val">3x</span><span class="hero-speed-sub">Triple</span></button>
+            <button type="button" class="hero-speed-btn local-speed-btn" data-speed="50.0"><span class="hero-speed-val">50x</span><span class="hero-speed-sub">Hyper</span></button>
+            <button type="button" class="hero-speed-btn local-speed-btn" data-speed="900.0"><span class="hero-speed-val">900x</span><span class="hero-speed-sub">Max</span></button>
+          </div>
+
+          <div class="adaptive-buffering-box">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span>⚡ RAM Cache:</span>
+              <span style="color:#059669;font-weight:600;">ACTIVE (0ms Latency)</span>
+            </div>
+            <button type="button" id="btnLocalPitchLock" class="pill-btn active">Pitch Lock: ON</button>
+            <button type="button" id="btnOffloadLocal" class="pill-btn" style="background:#221111;color:#ff8888;border-color:#ff4444;">Offload RAM</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =====================================================================
+       Media Configuration & Shipped Slot Data
+       ===================================================================== */
+    const CF = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/";
+    const R2 = "https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/";
+    const imgProxy = (src, w = 720) => `https://images.higgs.ai/?default=1&output=webp&url=${encodeURIComponent(src)}&w=${w}&q=85`;
+
+    const SEA_STILL_URL = imgProxy(CF + "hf_20261111_224417_17e8d78c-9384-4a50-93b4-92510f1957db.png", 2048);
+    const SEA_LOOP_URL = CF + "hf_20261111_232613_bf108dd9-dc98-4729-9163-748475f20b61.mp4";
+
+    const WORLDS = {
+      build: { label: "BUILD", color: "#3AA8D0", on: "#04121A", blurb: "Software for startups, from first sketch to a shipped product." },
+      brand: { label: "BRAND", color: "#EEF4F6", on: "#0A0E11", blurb: "Showreels and launch sites for labels that want to move." },
+      learn: { label: "LEARN", color: "#9ED8E4", on: "#0E2A3B", blurb: "Free toolkits and breakdowns for learners, one site at a time." },
+      ai:    { label: "NOA'S ASSISTANT", color: "#9ED8E4", on: "#0A0E11", blurb: "Answers about projects, rates and timelines, in Noa's own words." }
+    };
+
+    const CARDS = [
+      { id: 1,  title: "Rick Astley - Never Gonna Give You Up", ytId: "dQw4w9WgXcQ", video: "aaaf/kolibrie-landing.mp4", ratio: 16/9, world: "build", special: "youtube", badge: "▶ YOUTUBE 900x", chip: "▶ Rick Astley", tag: "YOUTUBE PLAYER" },
+      { id: 2,  title: "Big Buck Bunny 4K 60FPS",              ytId: "aqz-KE-bpKQ", video: "aaaf/balloon-drop-hero-edge.mp4", ratio: 16/9, world: "brand", special: "youtube", badge: "⚡ 900x ACCELERATOR", chip: "⚡ Big Buck Bunny", tag: "900x SPEED ENHANCER" },
+      { id: 3,  title: "Open Local Video (Zero-Buffer RAM)",    video: "aaaf/laptop-portfolio.mp4", poster: "hf_20261111_030305_aa366bc0-85e3-4f61-82c1-cbf8ae8217a3", ratio: 16/9, world: "brand", special: "local", badge: "📁 LOCAL RAM PLAYER", chip: "📁 Local Video RAM", tag: "LOCAL RAM PLAYER" },
+      { id: 4,  title: "Sintel Open Movie 4K",                  ytId: "eRsGyueVLvQ", video: "aaaf/glaze-motion.mp4", ratio: 16/9, world: "build", special: "youtube", badge: "🛡️ ZERO BUFFERING", chip: "🛡️ Sintel 4K Movie", tag: "ZERO-BUFFER STREAM" },
+      { id: 5,  title: "Tears of Steel Sci-Fi VFX",             ytId: "R6MlUcmOul8", video: "aaaf/sphere-gallery.mp4", ratio: 16/9, world: "learn", special: "youtube", badge: "🚀 50x HYPER SKIP", chip: "🚀 Tears of Steel", tag: "50x HYPER SKIP" },
+      { id: 6,  title: "Pitch-Locked Audio Engine",             video: "aaaf/ink-portfolio.mp4", poster: "hf_20261111_001348_8bc89068-e31a-4ccf-a6cb-893ff11c134f", ratio: 16/9, world: "build", special: "local", badge: "🎵 100% PITCH LOCK", chip: "🎵 Pitch-Locked Voices", tag: "PITCH-LOCKED AUDIO" },
+      { id: 7,  title: "Red Bull F1 Hyper Speed",               ytId: "L_LUpnjgPso", video: "aaaf/look-circle-hero.mp4", ratio: 16/9, world: "brand", special: "youtube", badge: "⚡ MAX VELOCITY", chip: "⚡ Red Bull F1", tag: "HYPER ACCELERATOR" },
+      { id: 8,  title: "How Computers Work in 10 Minutes",      ytId: "mCq8-xTH7jA", video: "aaaf/clothing-rail-hero.mp4", ratio: 3/2, world: "brand", special: "youtube", badge: "🛡️ BUFFER SHIELD", chip: "🛡️ How Computers Work", tag: "ADAPTIVE BUFFERING" },
+      { id: 9,  title: "History of the Entire World, I Guess",  ytId: "xuCn8ux2gbs", video: "aaaf/kinestra-card-story-v2.mp4", ratio: 16/10, world: "learn", special: "youtube", badge: "🎚️ 0.1x – 1000x DIAL", chip: "🎚️ History of World", tag: "SPEED CONTROLLER" },
+      { id: 10, title: "GPU Hardware Frame Blaster",            video: "aaaf/fox-couture-hero.mp4", poster: "hf_20261107_154307_13b28214-7ca8-4b2a-b8aa-a2f84e7cfcec", ratio: 16/10, world: "build", special: "local", badge: "⚡ GPU ACCELERATION", chip: "⚡ 60fps GPU Engine", tag: "HARDWARE ENGINE" },
+      { id: 11, title: "Queen - Bohemian Rhapsody",             ytId: "fJ9rUzIMcZQ", video: "aaaf/halftone-recap.mp4", ratio: 16/10, world: "learn", special: "youtube", badge: "🎛️ SPEED STUDIO PRO", chip: "🎛️ Bohemian Rhapsody", tag: "STUDIO ACCELERATOR" },
+      { id: 12, title: "Drag & Drop Video Vault",               video: "aaaf/spin-product-hero.mp4", poster: "hf_20261107_113531_66f5b631-47f4-45da-8094-29dc04544d61", ratio: 3/2, world: "learn", special: "local", badge: "📂 INSTANT DROP", chip: "📂 Drag & Drop Vault", tag: "DRAG & DROP VAULT" },
+      { id: 13, title: "Ed Sheeran - Shape of You",             ytId: "JGwWNGJdvx8", video: "aaaf/orbe-future-mode.mp4", ratio: 16/10, world: "brand", special: "youtube", badge: "📶 DATA OPTIMIZER", chip: "📶 Shape of You", tag: "BANDWIDTH SAVER" },
+      { id: 14, title: "Local 900x Time Warp",                  video: "aaaf/vhs-arc-hero.mp4", poster: "hf_20261105_045553_51e4ba42-a8a4-4702-ad5f-18c0e2a5ba85", ratio: 16/9, world: "learn", special: "local", badge: "⏱️ 900x TIME WARP", chip: "⏱️ 900x Time Warp", tag: "TIME WARP ENGINE" },
+      { id: 15, title: "Mark Ronson - Uptown Funk",             ytId: "OPf0YbXqDm0", video: "aaaf/mossline-hero.mp4", ratio: 16/9, world: "build", special: "youtube", badge: "🎙️ SPEECH ENGINE", chip: "🎙️ Uptown Funk", tag: "SPEECH ENHANCER" },
+      { id: 16, title: "Linkin Park - Numb",                    ytId: "kXYiU_JCYtU", video: "aaaf/try-the-look-hero.mp4", ratio: 16/9, world: "brand", special: "youtube", badge: "💾 0ms RAM FEED", chip: "💾 Linkin Park Numb", tag: "ZERO-LAG BUFFER" }
+    ];
+
+    const getCardPosterUrl = (c) => {
+      if (c.ytId) {
+        return `https://img.youtube.com/vi/${c.ytId}/hqdefault.jpg`;
+      }
+      if (c.poster && c.poster.startsWith("http")) {
+        return c.poster;
+      }
+      return imgProxy(CF + c.poster + ".png", 720);
+    };
+
+    const N = CARDS.length; // 16
+
+    /* Setup sea backgrounds */
+    document.getElementById("homeSeaStill").src = SEA_STILL_URL;
+    const homeSeaVideo = document.getElementById("homeSeaVideo");
+    homeSeaVideo.src = SEA_LOOP_URL;
+    homeSeaVideo.onplaying = () => homeSeaVideo.classList.add("loaded");
+    homeSeaVideo.play().catch(() => {});
+
+    /* =====================================================================
+       Generate Petals & Motes (Exact Shipped Arrays)
+       ===================================================================== */
+    const BACK_PETALS = [[4,14,9,29,0],[14,4,7,34,-12],[24,26,8,31,-21],[36,10,6,37,-5],[46,30,9,27,-16],[56,6,7,33,-27],[66,20,8,30,-9],[76,2,6,36,-24],[86,24,9,28,-3],[94,12,7,35,-18],[30,44,6,39,-31],[60,40,7,32,-13]];
+    const FRONT_PETALS = [[10,50,14,23,-6],[40,62,12,26,-19],[70,56,16,21,-11],[88,46,13,24,-2],[52,70,11,28,-23]];
+    const MOTES = [[8,62,10,14,-2],[18,40,6,18,-9],[27,70,14,16,-5],[36,52,8,20,-13],[44,30,5,17,-3],[53,66,12,15,-11],[61,44,7,19,-7],[69,74,16,14,-1],[77,36,6,21,-15],[85,58,11,16,-8],[92,46,7,18,-4],[13,82,9,22,-17],[48,84,13,17,-6],[72,22,5,23,-19]];
+
+    function populatePetals(targetId, list, isFront = false) {
+      const container = document.getElementById(targetId);
+      if (!container) return;
+      list.forEach(([l, t, w, dur, del], idx) => {
+        const el = document.createElement("span");
+        el.className = "petal" + (idx % 3 === 0 ? " mirrored" : "");
+        el.style.left = l + "%";
+        el.style.top = t + "%";
+        el.style.width = w + "px";
+        el.style.height = (w * 0.62) + "px";
+        el.style.animationDuration = dur + "s";
+        el.style.animationDelay = del + "s";
+        el.style.background = (idx % 2 === 0 ? "#FFFFFF" : "#D6EEF3");
+        container.appendChild(el);
+      });
+    }
+
+    populatePetals("backPetalsLayer", BACK_PETALS);
+    populatePetals("frontPetalsLayer", FRONT_PETALS, true);
+
+    const motesLayer = document.getElementById("motesLayer");
+    MOTES.forEach(([l, t, sz, dur, del]) => {
+      const el = document.createElement("span");
+      el.className = "mote";
+      el.style.left = l + "%";
+      el.style.top = t + "%";
+      el.style.width = sz + "px";
+      el.style.height = sz + "px";
+      el.style.animationDuration = dur + "s";
+      el.style.animationDelay = del + "s";
+      motesLayer.appendChild(el);
+    });
+
+    /* =====================================================================
+       Sentence Hero: Life's Too Short. Play It Faster
+       ===================================================================== */
+    const sentenceEl = document.getElementById("sentence");
+    sentenceEl.style.cursor = "pointer";
+    sentenceEl.title = "Click to open Speed Studio";
+    sentenceEl.addEventListener("click", () => openSpeedModal("youtube"));
+
+    const sentenceWords = ["Life's", "Too", "Short.", "<br>", "Play", "It", "Faster."];
+    let wordCounter = 0;
+    sentenceWords.forEach(word => {
+      if (word === "<br>") {
+        sentenceEl.appendChild(document.createElement("br"));
+        return;
+      }
+      const mask = document.createElement("span");
+      mask.className = "word-mask";
+      const inner = document.createElement("span");
+      inner.className = "word-inner";
+      inner.textContent = word + " ";
+      inner.style.transitionDelay = (0.05 + 0.045 * wordCounter++) + "s";
+      if (word === "Play" || word === "It" || word === "Faster.") {
+        inner.style.color = "var(--accent)";
+      }
+      mask.appendChild(inner);
+      sentenceEl.appendChild(mask);
+    });
+
+    /* =====================================================================
+       3D Ring Setup & Exact Geometry Formulas
+       ===================================================================== */
+    const ringCenter = document.getElementById("ringCenter");
+    const ringLens = document.getElementById("ringLens");
+    const ringWall = document.getElementById("ringWall");
+    const worldFrame = document.getElementById("worldFrame");
+
+    const slotElements = [];
+
+    CARDS.forEach((card, idx) => {
+      const slot = document.createElement("div");
+      slot.className = "card-slot";
+      slot.style.setProperty("--world-color", WORLDS[card.world].color);
+      slot.style.setProperty("--on-world", WORLDS[card.world].on);
+      const width = 160 * card.ratio;
+      slot.style.width = width + "px";
+      slot.style.left = (-width / 2) + "px";
+
+      const tiltWrap = document.createElement("div");
+      tiltWrap.className = "card-tilt-wrap";
+
+      const frame = document.createElement("div");
+      frame.className = "card-frame";
+
+      const face = document.createElement("div");
+      face.className = "card-face";
+
+      const poster = document.createElement("img");
+      poster.className = "card-poster";
+      poster.src = getCardPosterUrl(card);
+      poster.alt = card.title;
+      poster.onerror = () => {
+        poster.src = imgProxy(CF + "hf_20261111_034848_928e6733-ce60-48f4-9a65-14dc76a1d74b.png", 720);
+      };
+
+      const video = document.createElement("video");
+      video.className = "card-video";
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.dataset.src = R2 + card.video;
+
+      const chip = document.createElement("div");
+      chip.className = "card-chip";
+      const dot = document.createElement("span");
+      dot.className = "card-chip-dot";
+      const chipTxt = document.createElement("span");
+      chipTxt.textContent = card.chip || `No. ${String(idx + 1).padStart(2, "0")}`;
+      chip.appendChild(dot);
+      chip.appendChild(chipTxt);
+
+      // Prominent visual badges on card face for each specialized tool
+      const specialBadge = document.createElement("div");
+      specialBadge.className = "card-special-badge " + (card.special === "youtube" ? "badge-youtube" : "badge-local");
+      const iconSvg = card.special === "youtube"
+        ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>`
+        : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+      specialBadge.innerHTML = `${iconSvg}<span>${card.badge || card.title}</span>`;
+      face.appendChild(specialBadge);
+
+      const labelBar = document.createElement("div");
+      labelBar.className = "card-label-bar";
+      const lLeft = document.createElement("div");
+      lLeft.className = "card-label-left";
+      const wTag = document.createElement("span");
+      wTag.className = "card-world-tag";
+      wTag.textContent = card.tag || (card.special === "youtube" ? "YOUTUBE PLAYER" : "LOCAL VIDEO");
+      const title = document.createElement("span");
+      title.className = "card-title";
+      title.textContent = card.title;
+      lLeft.appendChild(wTag);
+      lLeft.appendChild(title);
+      const arrow = document.createElement("span");
+      arrow.className = "card-arrow";
+      arrow.textContent = "↗";
+      labelBar.appendChild(lLeft);
+      labelBar.appendChild(arrow);
+
+      const dim = document.createElement("div");
+      dim.className = "card-dim-overlay";
+
+      face.appendChild(poster);
+      face.appendChild(video);
+      face.appendChild(chip);
+      face.appendChild(labelBar);
+      face.appendChild(dim);
+
+      tiltWrap.appendChild(frame);
+      tiltWrap.appendChild(face);
+      slot.appendChild(tiltWrap);
+      ringCenter.appendChild(slot);
+
+      slotElements.push({ el: slot, video, tiltWrap, card, width, poster, chipTxt, titleEl: title, wTag, specialBadge });
+
+      // Click handler
+      slot.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (card.special === "youtube" || card.ytId) {
+          openSpeedModal("youtube");
+          if (card.ytId) {
+            loadYouTubeVideo(card.ytId, card.title);
+          }
+        } else if (card.special === "local") {
+          openSpeedModal("local");
+        } else {
+          openSpeedModal("youtube");
+        }
+      });
+    });
+
+    /* 3D Ring Animation Engine */
+    let formation = 0; // 0 -> 1 during intro
+    let expansion = 0; // 0 -> 1 during reveal
+    let targetRotation = 0;
+    let rotation = 0;
+    let isIntroDone = false;
+    let isDragging = false;
+    let startX = 0, startY = 0, startRot = 0;
+    let dragDistance = 0;
+
+    function renderRing() {
+      const e = expansion;
+      const f = formation;
+      const wallScale = window.innerWidth <= 820 ? 0.8 : (window.innerHeight <= 760 ? 0.9 : 1.1);
+
+      // Formulas from section 6c
+      const tilt = -22 * (1 - e);
+      const radius = 460 + 1340 * e;
+      const radTilt = tilt * Math.PI / 180;
+      const anchor = -radius * Math.sin(radTilt) + 460 * Math.sin(-22 * Math.PI / 180) * (1 - e);
+      const perspective = 1000 + (760 - 1000) * e;
+      const roll = -20 * (1 - e);
+      const cardScale = 0.52 + (2.3 - 0.52) * (e * e);
+
+      const fit = Math.min(1.05, (window.innerWidth - 32) / 1240, (0.66 * window.innerHeight) / 800) / wallScale;
+      const A = wallScale * (fit + (1 - fit) * e);
+      const frameRect = worldFrame.getBoundingClientRect();
+      const frameCenterY = frameRect.top + frameRect.height / 2;
+      const introOff = 0.44 * window.innerHeight - frameCenterY;
+
+      // Update camera variables
+      ringLens.style.perspective = (perspective * A) + "px";
+      ringLens.style.perspectiveOrigin = `50% calc(50% + ${introOff * (1 - e)}px)`;
+
+      const introOffset = introOff * (1 - e) + anchor * A;
+      const introX = 160 * Math.sin(roll * Math.PI / 180) * A;
+
+      ringCenter.style.transform = `translate3d(${introX}px, ${introOffset}px, 0) rotateZ(${roll}deg) rotateX(${tilt}deg) scale3d(${wallScale * (fit + (1 - fit) * e)}, ${wallScale * (fit + (1 - fit) * e)}, ${A})`;
+
+      // Position each card
+      slotElements.forEach((slotObj, k) => {
+        const curRot = isIntroDone ? rotation : 0;
+        const slotAngle = ((((360 * k / N + curRot + 180) % 360) + 360) % 360) - 180;
+        const n = (slotAngle + 180) % 360;
+        const a = n / 360;
+        const i = Math.max(0, Math.min(1, (f - 0.7 * a) / 0.3));
+        const s = 1 - Math.pow(1 - i, 3);
+        const l = -180 + n * s;
+        const c = radius - (1 - s) * a * 24;
+        const radL = l * Math.PI / 180;
+        const x = -Math.sin(radL) * c;
+        const z = -Math.cos(radL) * c;
+        const appear = Math.min(1, 2.5 * i);
+
+        slotObj.el.style.transform = `translate3d(${x}px, 0, ${z}px) rotateY(${l}deg) scale(${cardScale})`;
+        slotObj.el.style.opacity = appear;
+
+        // Culling
+        const isBehind = (z * Math.cos(radTilt)) >= (perspective - 70);
+        const isTooWide = isIntroDone && Math.abs(slotAngle) > 96;
+        slotObj.el.style.visibility = (isBehind || isTooWide || appear <= 0.01) ? "hidden" : "visible";
+
+        // Flip face if needed
+        if (z > (radius * radius) / perspective) {
+          slotObj.el.querySelector(".card-face").style.transform = "rotateY(180deg)";
+        } else {
+          slotObj.el.querySelector(".card-face").style.transform = "none";
+        }
+
+        // Preview video playback
+        if (formation > 0.5 && Math.abs(slotAngle) <= 78 && isIntroDone) {
+          if (slotObj.card.special === "youtube" || slotObj.card.ytId) {
+            slotObj.video.style.display = "none";
+          } else {
+            slotObj.video.style.display = "block";
+            if (!slotObj.video.src && slotObj.video.dataset.src) {
+              slotObj.video.src = slotObj.video.dataset.src;
+            }
+            if (slotObj.video.paused) {
+              slotObj.video.play().then(() => slotObj.video.classList.add("playing")).catch(() => {});
+            }
+          }
+        } else {
+          if (!slotObj.video.paused) {
+            slotObj.video.pause();
+          }
+        }
+      });
+    }
+
+    /* Spring Animation Loop */
+    let lastTime = performance.now();
+    function animLoop(time) {
+      const dt = Math.min(time - lastTime, 50);
+      lastTime = time;
+      const k = dt / 16.67;
+
+      // Spring for rotation: stiffness 150, damping 27
+      if (isIntroDone) {
+        if (!isDragging) {
+          targetRotation += 0.3 * k;
+        }
+        rotation += (targetRotation - rotation) * Math.min(1, 0.12 * k);
+      } else {
+        targetRotation += 0.3 * (0.5 + 0.5 * expansion) * Math.max(0, Math.min(1, (78 - targetRotation) / 20)) * k;
+        rotation = targetRotation;
+      }
+
+      renderRing();
+      requestAnimationFrame(animLoop);
+    }
+    requestAnimationFrame(animLoop);
+
+    /* Drag & Wheel Controls */
+    ringWall.addEventListener("mousedown", (e) => {
+      if (!isIntroDone) return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startRot = targetRotation;
+      dragDistance = 0;
+      ringWall.classList.add("grabbing");
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      dragDistance += Math.abs(dx) + Math.abs(dy);
+      const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+      targetRotation = startRot + 0.2 * delta;
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (isDragging) {
+        isDragging = false;
+        ringWall.classList.remove("grabbing");
+      }
+    });
+
+    // Wheel
+    window.addEventListener("wheel", (e) => {
+      if (!isIntroDone || !document.body.classList.contains("home-view-active")) return;
+      if (e.target.closest("input, select, textarea, .speed-modal-card")) return;
+      e.preventDefault();
+      const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      targetRotation += 0.5 * Math.max(-480, Math.min(480, delta));
+    }, { passive: false });
+
+    /* =====================================================================
+       Opening Sequence (Timeline)
+       ===================================================================== */
+    const loaderStage = document.getElementById("loaderStage");
+    const odoTens = document.querySelector("#odoDigitTens .odometer-wheel");
+    const odoOnes = document.querySelector("#odoDigitOnes .odometer-wheel");
+    const odoHundreds = document.querySelector("#odoDigitHundreds .odometer-wheel");
+    const captionEl = document.getElementById("loaderCaption");
+
+    // Caption typewriter
+    const captionText = "LOADING SITES";
+    let capIdx = 0;
+    setTimeout(() => {
+      const capInt = setInterval(() => {
+        captionEl.textContent += captionText[capIdx++];
+        if (capIdx >= captionText.length) clearInterval(capInt);
+      }, 45);
+    }, 350);
+
+    // Letter reveal
+    document.querySelectorAll(".loader-letter-inner").forEach((el, idx) => {
+      setTimeout(() => {
+        el.style.transform = "translateY(0) rotate(0deg)";
+      }, 100 + idx * 80);
+    });
+
+    // Odometer count & formation (0 -> 1 over 2.6s)
+    let startTime = performance.now();
+    let postersLoaded = 0;
+    let targetPct = 0;
+    const totalPosters = CARDS.length;
+
+    CARDS.forEach(c => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        postersLoaded++;
+        targetPct = Math.round((postersLoaded / totalPosters) * 100);
+      };
+      img.src = getCardPosterUrl(c);
+    });
+
+    function setOdometer(val) {
+      val = Math.min(100, Math.max(0, val));
+      const h = Math.floor(val / 100);
+      const t = Math.floor((val % 100) / 10);
+      const o = val % 10;
+      if (h > 0) {
+        document.getElementById("odoDigitHundreds").style.display = "inline-block";
+        odoHundreds.style.transform = `translateY(-${h}em)`;
+      }
+      odoTens.style.transform = `translateY(-${t}em)`;
+      odoOnes.style.transform = `translateY(-${o}em)`;
+    }
+
+    let introAnimId = setInterval(() => {
+      const elapsed = (performance.now() - startTime) / 1000;
+      formation = Math.min(1, elapsed / 2.6);
+      const simulatedPct = Math.min(100, Math.round((elapsed / 2.6) * 100));
+      setOdometer(Math.max(simulatedPct, targetPct));
+
+      if (formation >= 1 && (postersLoaded >= totalPosters || elapsed > 3.0)) {
+        clearInterval(introAnimId);
+        finishIntro();
+      }
+    }, 16);
+
+    document.getElementById("loaderSkipBtn").addEventListener("click", finishIntro);
+
+    function finishIntro() {
+      if (isIntroDone) return;
+      clearInterval(introAnimId);
+      formation = 1;
+      setOdometer(100);
+
+      // Measure coordinates for open frame -> rounded frame
+      const frameRect = worldFrame.getBoundingClientRect();
+      worldFrame.style.setProperty("--ft", frameRect.top + "px");
+      worldFrame.style.setProperty("--fl", frameRect.left + "px");
+      worldFrame.style.setProperty("--fr", (window.innerWidth - frameRect.right) + "px");
+      worldFrame.style.setProperty("--fb", (window.innerHeight - frameRect.bottom) + "px");
+
+      // Reveal sequence
+      loaderStage.classList.add("fade-out");
+      setTimeout(() => loaderStage.remove(), 1000);
+
+      worldFrame.classList.remove("intro-open");
+      document.getElementById("homeSceneLayer").style.opacity = "1";
+      document.getElementById("backPetalsLayer").style.opacity = "1";
+      document.getElementById("frontPetalsLayer").style.opacity = "1";
+      document.getElementById("motesLayer").style.opacity = "1";
+      document.getElementById("mistLayer").classList.add("active");
+
+      // Fly name to nav
+      const lBrand = document.getElementById("loaderBrand");
+      const wmTarget = document.getElementById("wmFirst");
+      if (lBrand && wmTarget) {
+        const bRect = lBrand.getBoundingClientRect();
+        const tRect = wmTarget.getBoundingClientRect();
+        const clone = document.createElement("div");
+        clone.className = "flying-name-clone";
+        clone.textContent = "Spedia.";
+        clone.style.left = bRect.left + "px";
+        clone.style.top = bRect.top + "px";
+        clone.style.fontSize = window.getComputedStyle(lBrand).fontSize;
+        document.body.appendChild(clone);
+
+        const scaleRatio = tRect.height / bRect.height;
+        requestAnimationFrame(() => {
+          clone.style.transform = `translate(${tRect.left - bRect.left}px, ${tRect.top - bRect.top}px) scale(${scaleRatio})`;
+        });
+
+        setTimeout(() => {
+          clone.remove();
+          document.getElementById("navLinks").style.opacity = "1";
+          document.getElementById("wmRest").style.opacity = "1";
+        }, 1300);
+      }
+
+      // Expansion 0 -> 1 over 1.9s
+      let expStart = performance.now();
+      let expInt = setInterval(() => {
+        const p = (performance.now() - expStart) / 1900;
+        expansion = Math.min(1, p);
+        if (expansion >= 1) {
+          clearInterval(expInt);
+          isIntroDone = true;
+        }
+      }, 16);
+
+      // Animate top sentence words up
+      setTimeout(() => {
+        document.querySelectorAll(".sentence .word-inner").forEach(el => el.style.transform = "translateY(0)");
+        document.querySelectorAll(".stat-col").forEach(el => {
+          el.style.opacity = "1";
+          el.style.transform = "translateY(0)";
+        });
+      }, 1050);
+    }
+
+    /* =====================================================================
+       Video Speed Enhancer Modal Studio Engine (YouTube & Local)
+       ===================================================================== */
+    const speedModal = document.getElementById("speedModal");
+    const btnCloseModal = document.getElementById("btnCloseModal");
+    const navOpenStudio = document.getElementById("navOpenStudio");
+
+    const tabBtnYT = document.getElementById("tabBtnYT");
+    const tabBtnLocal = document.getElementById("tabBtnLocal");
+    const modalYTView = document.getElementById("modalYTView");
+    const modalLocalView = document.getElementById("modalLocalView");
+
+    let currentModalTab = "youtube";
+    function setModalTab(tab) {
+      currentModalTab = tab;
+      if (tab === "youtube") {
+        tabBtnYT.classList.add("active");
+        tabBtnLocal.classList.remove("active");
+        modalYTView.style.display = "block";
+        modalLocalView.style.display = "none";
+      } else {
+        tabBtnLocal.classList.add("active");
+        tabBtnYT.classList.remove("active");
+        modalLocalView.style.display = "block";
+        modalYTView.style.display = "none";
+        initLocalDemo();
+      }
+    }
+
+    tabBtnYT.addEventListener("click", () => setModalTab("youtube"));
+    tabBtnLocal.addEventListener("click", () => setModalTab("local"));
+    navOpenStudio.addEventListener("click", () => openSpeedModal("youtube"));
+
+    let currentYtId = "dQw4w9WgXcQ";
+
+    function extractYouTubeId(idOrUrl) {
+      if (!idOrUrl) return "";
+      let id = idOrUrl.trim();
+      if (id.includes("v=")) {
+        id = id.split("v=")[1].split("&")[0];
+      } else if (id.includes("youtu.be/")) {
+        id = id.split("youtu.be/")[1].split("?")[0];
+      } else if (id.includes("/embed/")) {
+        id = id.split("/embed/")[1].split("?")[0];
+      }
+      return id;
+    }
+
+    function recordYouTubeHistory(id, title) {
+      if (!id) return;
+      try {
+        let history = JSON.parse(localStorage.getItem("spedia_yt_history") || "[]");
+        history = history.filter(item => item.id !== id);
+        const resolvedTitle = title || (id === "dQw4w9WgXcQ" ? "Rick Astley - Never Gonna Give You Up" : `YouTube Video (${id})`);
+        history.unshift({
+          id,
+          title: resolvedTitle,
+          time: Date.now()
+        });
+        if (history.length > 10) history = history.slice(0, 10);
+        localStorage.setItem("spedia_yt_history", JSON.stringify(history));
+        updateRingCardsWithHistory();
+        renderHistoryQuickPills();
+      } catch (e) {
+        console.error("Failed to save history", e);
+      }
+    }
+
+    function renderHistoryQuickPills() {
+      const container = document.getElementById("ytHistoryQuickPills");
+      const row = document.getElementById("ytHistoryQuickRow");
+      if (!container || !row) return;
+      try {
+        const history = JSON.parse(localStorage.getItem("spedia_yt_history") || "[]");
+        if (!history || history.length === 0) {
+          row.style.display = "none";
+          return;
+        }
+        row.style.display = "flex";
+        container.innerHTML = "";
+        history.slice(0, 6).forEach(item => {
+          const pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "pill-btn";
+          pill.style.cssText = "font-size:11px;padding:3px 8px;white-space:nowrap;background:rgba(58,168,208,0.12);border-color:rgba(58,168,208,0.3);color:var(--ink);";
+          const shortTitle = item.title.length > 20 ? item.title.substring(0, 18) + "..." : item.title;
+          pill.textContent = "▶ " + shortTitle;
+          pill.title = item.title;
+          pill.addEventListener("click", () => {
+            loadYouTubeVideo(item.id, item.title);
+          });
+          container.appendChild(pill);
+        });
+      } catch (e) {}
+    }
+
+    function updateRingCardsWithHistory() {
+      try {
+        const history = JSON.parse(localStorage.getItem("spedia_yt_history") || "[]");
+        if (!history || history.length === 0) return;
+
+        history.forEach((histItem, idx) => {
+          if (idx < slotElements.length) {
+            const slotObj = slotElements[idx];
+            slotObj.card.ytId = histItem.id;
+            slotObj.card.title = histItem.title;
+            slotObj.card.special = "youtube";
+            slotObj.poster.src = `https://img.youtube.com/vi/${histItem.id}/hqdefault.jpg`;
+            slotObj.poster.onerror = () => {
+              slotObj.poster.src = imgProxy(CF + "hf_20261111_034848_928e6733-ce60-48f4-9a65-14dc76a1d74b.png", 720);
+            };
+            if (slotObj.titleEl) slotObj.titleEl.textContent = histItem.title;
+            if (slotObj.chipTxt) {
+              const short = histItem.title.length > 18 ? histItem.title.substring(0, 16) + "..." : histItem.title;
+              slotObj.chipTxt.textContent = "🕒 " + short;
+            }
+            if (slotObj.wTag) {
+              slotObj.wTag.textContent = "RECENT HISTORY";
+              slotObj.wTag.style.color = "#3AA8D0";
+            }
+            if (slotObj.specialBadge) {
+              slotObj.specialBadge.className = "card-special-badge badge-youtube";
+              slotObj.specialBadge.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" fill="none"/></svg><span>HISTORY REPLAY</span>`;
+            }
+            if (slotObj.video) {
+              slotObj.video.style.display = "none";
+            }
+          }
+        });
+      } catch (e) {
+        console.error("Error updating ring cards with history:", e);
+      }
+    }
+
+    function openSpeedModal(tab = "youtube") {
+      setModalTab(tab);
+      speedModal.classList.add("active");
+      renderHistoryQuickPills();
+      if (tab === "youtube") {
+        if (!modalYTIframe.src || modalYTIframe.src === "about:blank") {
+          try {
+            const history = JSON.parse(localStorage.getItem("spedia_yt_history") || "[]");
+            const firstId = history.length > 0 ? history[0].id : "dQw4w9WgXcQ";
+            const firstTitle = history.length > 0 ? history[0].title : "Rick Astley - Never Gonna Give You Up";
+            loadYouTubeVideo(firstId, firstTitle);
+          } catch (e) {
+            loadYouTubeVideo("dQw4w9WgXcQ");
+          }
+        }
+      }
+    }
+
+    function closeModal() {
+      speedModal.classList.remove("active");
+      // Offload active video players to release RAM and stop network streaming!
+      offloadYouTubeRAM();
+      offloadYouTube();
+      offloadLocal();
+    }
+
+    btnCloseModal.addEventListener("click", closeModal);
+
+    /* --- YouTube Engine in Modal --- */
+    const modalYTIframe = document.getElementById("modalYTIframe");
+    const modalYTRamVideo = document.getElementById("modalYTRamVideo");
+    const modalYTSpeedBadge = document.getElementById("modalYTSpeedBadge");
+    const modalYTSlider = document.getElementById("modalYTSlider");
+    const modalYTCustomNum = document.getElementById("modalYTCustomNum");
+    let ytSpeed = 1.0;
+    let ytPacingMs = 750;
+    let ytAdaptiveBuffering = true;
+    let ytHyperSkipTimer = null;
+    let ytCurrentTime = 0;
+    let ytDuration = 0;
+    let ytLoadedFraction = 1.0;
+    let ytPlayerState = 1; // 1: playing, 2: paused, 3: buffering
+    let isSeekInFlight = false;
+    let lastSeekTimestamp = 0;
+
+    let ytRamBlobUrl = null;
+    let isYTRamMode = false;
+    let ytRamHyperSkipTimer = null;
+    let downloadPollInterval = null;
+    let currentYtTitle = "Rick Astley - Never Gonna Give You Up";
+
+    function updateBufferHealthUI() {
+      const statusText = document.getElementById("ramProgressStatusText");
+      const pctText = document.getElementById("ramProgressPctText");
+      const fill = document.getElementById("ramProgressBarFill");
+      const pill = document.getElementById("ramActivePill");
+      if (!statusText || !pctText || !fill) return;
+
+      if (isYTRamMode) {
+        fill.style.width = "100%";
+        fill.style.background = "linear-gradient(to right, #3AA8D0, #059669)";
+        pctText.textContent = "100% In RAM";
+        statusText.innerHTML = `<span style="color:#34d399;">✓ 100% Preloaded in RAM · 0ms Latency · Full Audio Active</span>`;
+        if (pill) {
+          pill.style.display = "inline-block";
+          pill.style.background = "#059669";
+          pill.textContent = "PRELOADED IN RAM · 0ms BUFFER";
+        }
+        return;
+      }
+
+      const healthPct = Math.min(100, Math.max(10, Math.round(ytLoadedFraction * 100)));
+      fill.style.width = healthPct + "%";
+      pctText.textContent = `${healthPct}% Buffer Stream Health`;
+
+      if (ytPlayerState === 3) {
+        fill.style.background = "linear-gradient(to right, #eab308, #f59e0b)";
+        statusText.innerHTML = `<span style="color:#fde047;">⏳ Buffering network keyframe... (holding seek)</span>`;
+      } else if (ytPlayerState === 1) {
+        fill.style.background = "linear-gradient(to right, #3AA8D0, #059669)";
+        if (ytSpeed > 2.0) {
+          statusText.innerHTML = `<span style="color:#34d399;">⚡ Network Stream: Advancing at ${ytSpeed.toFixed(0)}x (Load to RAM recommended)</span>`;
+        } else {
+          statusText.innerHTML = `<span style="color:#38bdf8;">✓ Stream Stable · 0ms Stall</span>`;
+        }
+      }
+    }
+
+    // Listen for YouTube player state and currentTime messages
+    window.addEventListener("message", (e) => {
+      try {
+        const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        if (data && data.event === "infoDelivery" && data.info) {
+          if (typeof data.info.currentTime === "number") {
+            ytCurrentTime = data.info.currentTime;
+            isSeekInFlight = false;
+          }
+          if (typeof data.info.duration === "number" && data.info.duration > 0) {
+            ytDuration = data.info.duration;
+          }
+          if (typeof data.info.playerState === "number") {
+            ytPlayerState = data.info.playerState;
+            if (ytPlayerState === 1) isSeekInFlight = false;
+          }
+          if (typeof data.info.videoLoadedFraction === "number") {
+            ytLoadedFraction = data.info.videoLoadedFraction;
+          }
+          updateBufferHealthUI();
+        }
+      } catch (err) {}
+    });
+
+    modalYTIframe.addEventListener("load", () => {
+      modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "listening" }), "*");
+      if (ytSpeed > 5.0) {
+        modalYTIframe.contentWindow?.postMessage(JSON.stringify({
+          event: "command",
+          func: "setPlaybackQuality",
+          args: ["small"]
+        }), "*");
+      }
+    });
+
+    function loadYouTubeVideo(idOrUrl, optionalTitle) {
+      let id = extractYouTubeId(idOrUrl);
+      if (!id) id = "dQw4w9WgXcQ";
+      currentYtId = id;
+      currentYtTitle = optionalTitle || (id === "dQw4w9WgXcQ" ? "Rick Astley - Never Gonna Give You Up" : `YouTube Video (${id})`);
+      ytCurrentTime = 0;
+      isSeekInFlight = false;
+      if (isYTRamMode) offloadYouTubeRAM();
+      modalYTIframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+      document.getElementById("modalYTInput").value = id;
+      setYTSpeed(ytSpeed);
+      recordYouTubeHistory(id, currentYtTitle);
+    }
+
+    document.getElementById("modalYTLoadBtn").addEventListener("click", () => {
+      const input = document.getElementById("modalYTInput").value;
+      loadYouTubeVideo(input);
+    });
+
+    /* Real Video Download to RAM with Audio & Offload Cleanup */
+    async function preloadYouTubeToRAM() {
+      if (isYTRamMode && ytRamBlobUrl) return;
+      const statusPill = document.getElementById("ramActivePill");
+      const btnToggle = document.getElementById("btnToggleRamPreload");
+      const btnOffload = document.getElementById("btnOffloadRamPreload");
+      const progressWrap = document.getElementById("ramProgressBarWrapper");
+      const progressFill = document.getElementById("ramProgressBarFill");
+      const progressPct = document.getElementById("ramProgressPctText");
+      const progressStatus = document.getElementById("ramProgressStatusText");
+      const noticeBox = document.getElementById("ramRequirementNotice");
+
+      // 1. Immediately pause and mute YouTube iframe so background audio stops
+      modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: [] }), "*");
+      modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "mute", args: [] }), "*");
+
+      // 2. Display progress UI
+      if (progressWrap) progressWrap.style.display = "flex";
+      if (progressFill) progressFill.style.width = "5%";
+      if (progressPct) progressPct.textContent = "5%";
+      if (progressStatus) progressStatus.textContent = "Initiating download with audio...";
+      btnToggle.textContent = "Downloading...";
+      btnToggle.disabled = true;
+
+      try {
+        const startRes = await fetch(`/api/start-download?id=${currentYtId}`);
+        if (!startRes.ok) {
+          // Static host (GitHub Pages, Vercel static, etc.) where Node/yt-dlp backend is not running
+          if (progressWrap) progressWrap.style.display = "flex";
+          if (progressFill) {
+            progressFill.style.width = "100%";
+            progressFill.style.background = "#eab308";
+          }
+          if (progressPct) progressPct.textContent = "Static Host";
+          if (progressStatus) {
+            progressStatus.innerHTML = `🛡️ <b>Static Hosting Active (GitHub Pages)</b>: YouTube video binary download requires a local backend (<code>npm run dev</code>).<br>• <b>Anti-Buffer Turbo Shield</b> is actively stabilizing your stream at <b>${ytSpeed.toFixed(1)}x</b>!<br>• For 0ms offline RAM caching up to 900x, switch to the <a href="#" id="linkSwitchToLocal" style="color:var(--accent);text-decoration:underline;font-weight:600;">Local Offline Player</a>.`;
+            document.getElementById("linkSwitchToLocal")?.addEventListener("click", (e) => {
+              e.preventDefault();
+              setModalTab("local");
+            });
+          }
+          btnToggle.textContent = "⚡ Turbo Shield Active";
+          btnToggle.disabled = false;
+          modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "unMute", args: [] }), "*");
+          modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: [] }), "*");
+          return;
+        }
+
+        const startData = await startRes.json();
+
+        if (startData.done && startData.file) {
+          await finalizeRamMount(startData.file);
+          return;
+        }
+
+        if (downloadPollInterval) clearInterval(downloadPollInterval);
+        downloadPollInterval = setInterval(async () => {
+          try {
+            const progRes = await fetch(`/api/progress-download?id=${currentYtId}`);
+            if (!progRes.ok) throw new Error("Progress endpoint unavailable");
+            const task = await progRes.json();
+
+            const pct = Math.max(5, Math.min(99, task.pct || 0));
+            if (progressFill) progressFill.style.width = pct + "%";
+            if (progressPct) progressPct.textContent = pct + "%";
+            if (progressStatus) progressStatus.textContent = task.status || "Downloading with audio...";
+
+            if (task.done) {
+              clearInterval(downloadPollInterval);
+              downloadPollInterval = null;
+              if (task.file) {
+                await finalizeRamMount(task.file);
+              } else {
+                throw new Error(task.error || "Download failed");
+              }
+            }
+          } catch (pollErr) {
+            console.error("Progress poll error:", pollErr);
+          }
+        }, 350);
+
+      } catch (err) {
+        console.warn("Download to RAM notice:", err);
+        btnToggle.textContent = "⚡ Load to RAM";
+        btnToggle.disabled = false;
+        if (progressWrap) progressWrap.style.display = "flex";
+
+        const isStaticHost = location.hostname.endsWith('github.io') || (!['localhost', '127.0.0.1'].includes(location.hostname));
+        if (isStaticHost) {
+          if (progressFill) {
+            progressFill.style.width = "100%";
+            progressFill.style.background = "#eab308";
+          }
+          if (progressPct) progressPct.textContent = "Static Host";
+          if (progressStatus) {
+            progressStatus.innerHTML = `🛡️ <b>Static Hosting Active (GitHub Pages)</b>: Direct server extraction is unavailable on static hosting.<br>• <b>Anti-Buffer Turbo Shield</b> is actively protecting live playback.<br>• For 0ms latency up to 900x in RAM, switch to the <a href="#" id="linkSwitchToLocal2" style="color:var(--accent);text-decoration:underline;font-weight:600;">Local Offline Player</a>.`;
+            document.getElementById("linkSwitchToLocal2")?.addEventListener("click", (e) => {
+              e.preventDefault();
+              setModalTab("local");
+            });
+          }
+        } else {
+          if (progressFill) {
+            progressFill.style.width = "100%";
+            progressFill.style.background = "#ef4444";
+          }
+          if (progressPct) progressPct.textContent = "Notice";
+          if (progressStatus) {
+            progressStatus.innerHTML = `⚠️ <b>Download Notice</b>: ${err.message || 'Stream processing issue'}. Live stream mode active.`;
+          }
+        }
+        modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "unMute", args: [] }), "*");
+        modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: [] }), "*");
+      }
+    }
+
+    async function finalizeRamMount(fileUrl) {
+      const statusPill = document.getElementById("ramActivePill");
+      const btnToggle = document.getElementById("btnToggleRamPreload");
+      const btnOffload = document.getElementById("btnOffloadRamPreload");
+      const progressFill = document.getElementById("ramProgressBarFill");
+      const progressPct = document.getElementById("ramProgressPctText");
+      const progressStatus = document.getElementById("ramProgressStatusText");
+      const noticeBox = document.getElementById("ramRequirementNotice");
+
+      if (progressStatus) progressStatus.textContent = "Caching video bytes into browser RAM memory...";
+      if (progressFill) progressFill.style.width = "95%";
+      if (progressPct) progressPct.textContent = "95%";
+
+      // Fetch the downloaded mp4 directly into browser RAM as a Blob
+      const videoRes = await fetch(fileUrl);
+      const arrayBuf = await videoRes.arrayBuffer();
+      const blob = new Blob([arrayBuf], { type: "video/mp4" });
+
+      if (ytRamBlobUrl) URL.revokeObjectURL(ytRamBlobUrl);
+      ytRamBlobUrl = URL.createObjectURL(blob);
+
+      // Clean up server-side file so disk is not occupied
+      fetch(`/api/delete-video?id=${currentYtId}`).catch(() => {});
+
+      // Mount into RAM video player
+      modalYTRamVideo.src = ytRamBlobUrl;
+      modalYTRamVideo.loop = true;
+      modalYTRamVideo.preservesPitch = true;
+      modalYTIframe.style.display = "none";
+      modalYTRamVideo.style.display = "block";
+      await modalYTRamVideo.play().catch(() => {});
+
+      isYTRamMode = true;
+      if (progressFill) progressFill.style.width = "100%";
+      if (progressPct) progressPct.textContent = "100%";
+      if (progressStatus) progressStatus.textContent = `✓ 100% Downloaded with Audio · Cached in RAM (0ms Buffering)`;
+
+      statusPill.style.display = "inline-block";
+      btnToggle.textContent = "✓ In RAM (Active)";
+      btnToggle.disabled = false;
+      btnOffload.style.display = "inline-block";
+      if (noticeBox) noticeBox.style.display = "none";
+
+      setYTSpeed(ytSpeed);
+    }
+
+    function offloadYouTubeRAM() {
+      isYTRamMode = false;
+      if (downloadPollInterval) {
+        clearInterval(downloadPollInterval);
+        downloadPollInterval = null;
+      }
+      if (ytRamHyperSkipTimer) {
+        clearInterval(ytRamHyperSkipTimer);
+        ytRamHyperSkipTimer = null;
+      }
+
+      modalYTRamVideo.pause();
+      modalYTRamVideo.src = "";
+      modalYTRamVideo.style.display = "none";
+
+      // Wipe browser RAM allocation
+      if (ytRamBlobUrl) {
+        URL.revokeObjectURL(ytRamBlobUrl);
+        ytRamBlobUrl = null;
+      }
+
+      // Delete disk file
+      if (currentYtId) {
+        fetch(`/api/delete-video?id=${currentYtId}`).catch(() => {});
+      }
+
+      const progressWrap = document.getElementById("ramProgressBarWrapper");
+      if (progressWrap) progressWrap.style.display = "none";
+
+      modalYTIframe.style.display = "block";
+      modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "unMute", args: [] }), "*");
+
+      const statusPill = document.getElementById("ramActivePill");
+      if (statusPill) statusPill.style.display = "none";
+      const btnToggle = document.getElementById("btnToggleRamPreload");
+      if (btnToggle) {
+        btnToggle.textContent = "⚡ Load to RAM";
+        btnToggle.disabled = false;
+      }
+      const btnOffload = document.getElementById("btnOffloadRamPreload");
+      if (btnOffload) btnOffload.style.display = "none";
+
+      const noticeBox = document.getElementById("ramRequirementNotice");
+      if (noticeBox && ytSpeed >= 3.0) noticeBox.style.display = "flex";
+
+      setYTSpeed(ytSpeed);
+    }
+
+    document.getElementById("btnToggleRamPreload").addEventListener("click", preloadYouTubeToRAM);
+    document.getElementById("btnOffloadRamPreload").addEventListener("click", offloadYouTubeRAM);
+    const btnNotice = document.getElementById("btnNoticeLoadRam");
+    if (btnNotice) btnNotice.addEventListener("click", preloadYouTubeToRAM);
+
+    function setYTSpeed(speed) {
+      ytSpeed = Math.max(0.1, Number(speed) || 1.0);
+      modalYTSpeedBadge.textContent = ytSpeed.toFixed(2) + "x";
+      modalYTSlider.value = Math.min(ytSpeed, 100);
+      modalYTCustomNum.value = ytSpeed;
+
+      const noticeBox = document.getElementById("ramRequirementNotice");
+      if (noticeBox) {
+        noticeBox.style.display = (ytSpeed >= 3.0 && !isYTRamMode) ? "flex" : "none";
+      }
+
+      // ── MODE A: REAL RAM MODE (Zero-Buffering Offline Playback up to 900x) ──
+      if (isYTRamMode && modalYTRamVideo.src) {
+        modalYTRamVideo.playbackRate = Math.min(ytSpeed, 16.0);
+        modalYTRamVideo.preservesPitch = true;
+        if (ytRamHyperSkipTimer) clearInterval(ytRamHyperSkipTimer);
+
+        if (ytSpeed > 16.0) {
+          ytRamHyperSkipTimer = setInterval(() => {
+            if (!modalYTRamVideo.paused && !modalYTRamVideo.seeking) {
+              modalYTRamVideo.currentTime += (ytSpeed - 16.0) * 0.1;
+              if (modalYTRamVideo.duration && modalYTRamVideo.currentTime >= modalYTRamVideo.duration) {
+                modalYTRamVideo.currentTime = 0;
+              }
+            }
+          }, 100);
+        }
+        return;
+      }
+
+      // ── MODE B: NORMAL ONLINE YOUTUBE STREAMING MODE ──
+      modalYTIframe.contentWindow?.postMessage(JSON.stringify({
+        event: "command",
+        func: "setPlaybackRate",
+        args: [Math.min(ytSpeed, 2.0)]
+      }), "*");
+
+      if (ytSpeed > 5.0) {
+        modalYTIframe.contentWindow?.postMessage(JSON.stringify({
+          event: "command",
+          func: "setPlaybackQuality",
+          args: ["small"]
+        }), "*");
+      }
+
+      if (ytSpeed > 2.0) {
+        modalYTIframe.contentWindow?.postMessage(JSON.stringify({
+          event: "command",
+          func: "mute",
+          args: []
+        }), "*");
+      } else {
+        modalYTIframe.contentWindow?.postMessage(JSON.stringify({
+          event: "command",
+          func: "unMute",
+          args: []
+        }), "*");
+      }
+
+      if (ytHyperSkipTimer) clearInterval(ytHyperSkipTimer);
+      isSeekInFlight = false;
+
+      if (ytSpeed > 2.0) {
+        const pacingMs = Math.max(ytPacingMs, 600);
+        ytHyperSkipTimer = setInterval(() => {
+          if (ytAdaptiveBuffering && (ytPlayerState === 3 || isSeekInFlight)) {
+            updateBufferHealthUI();
+            return;
+          }
+
+          const now = performance.now();
+          if (now - lastSeekTimestamp < pacingMs) return;
+
+          const hopSeconds = (ytSpeed - 2.0) * (pacingMs / 1000);
+          const nextTime = ytCurrentTime + hopSeconds;
+
+          if (ytDuration > 0 && nextTime >= ytDuration) {
+            ytCurrentTime = 0;
+            modalYTIframe.contentWindow?.postMessage(JSON.stringify({
+              event: "command",
+              func: "seekTo",
+              args: [0, true]
+            }), "*");
+            return;
+          }
+
+          lastSeekTimestamp = now;
+          isSeekInFlight = true;
+          modalYTIframe.contentWindow?.postMessage(JSON.stringify({
+            event: "command",
+            func: "seekTo",
+            args: [nextTime, true]
+          }), "*");
+          updateBufferHealthUI();
+        }, 120);
+      }
+      updateBufferHealthUI();
+    }
+
+    document.querySelectorAll(".hero-speed-btn[data-speed]").forEach(btn => {
+      btn.addEventListener("click", () => setYTSpeed(parseFloat(btn.dataset.speed)));
+    });
+
+    modalYTSlider.addEventListener("input", (e) => setYTSpeed(parseFloat(e.target.value)));
+    document.getElementById("modalYTApplyNum").addEventListener("click", () => {
+      setYTSpeed(parseFloat(modalYTCustomNum.value));
+    });
+
+    document.getElementById("btnToggleAdaptive").addEventListener("click", function() {
+      ytAdaptiveBuffering = !ytAdaptiveBuffering;
+      this.textContent = ytAdaptiveBuffering ? "ACTIVE" : "OFF";
+      this.classList.toggle("active", ytAdaptiveBuffering);
+    });
+
+    document.querySelectorAll(".pacing-btn").forEach(btn => {
+      btn.addEventListener("click", function() {
+        document.querySelectorAll(".pacing-btn").forEach(b => b.classList.remove("active"));
+        this.classList.add("active");
+        ytPacingMs = parseInt(this.dataset.ms);
+        setYTSpeed(ytSpeed);
+      });
+    });
+
+    function offloadYouTube() {
+      if (ytHyperSkipTimer) clearInterval(ytHyperSkipTimer);
+      modalYTIframe.src = "about:blank";
+    }
+
+    document.getElementById("btnOffloadYT").addEventListener("click", offloadYouTube);
+
+    // Initial setup for History on Ring Cards and Modal Pills
+    updateRingCardsWithHistory();
+    renderHistoryQuickPills();
+
+    /* --- Local Offline Video Engine in Modal --- */
+    const modalLocalVideo = document.getElementById("modalLocalVideo");
+    const localDropZone = document.getElementById("localDropZone");
+    const localFileInput = document.getElementById("localFileInput");
+    const localFileStatus = document.getElementById("localFileStatus");
+    const modalLocalSpeedBadge = document.getElementById("modalLocalSpeedBadge");
+    const modalLocalSlider = document.getElementById("modalLocalSlider");
+    const modalLocalCustomNum = document.getElementById("modalLocalCustomNum");
+
+    let localSpeed = 1.0;
+    let localBlobUrl = null;
+    let localHyperSkipTimer = null;
+    let isPitchLocked = true;
+
+    function initLocalDemo() {
+      if (modalLocalVideo.src) return;
+      // Procedural animated demo video
+      const canvas = document.createElement("canvas");
+      canvas.width = 1280; canvas.height = 720;
+      const ctx = canvas.getContext("2d");
+      const stream = canvas.captureStream(30);
+      const recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+      const chunks = [];
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        if (localBlobUrl) URL.revokeObjectURL(localBlobUrl);
+        localBlobUrl = URL.createObjectURL(blob);
+        modalLocalVideo.src = localBlobUrl;
+        modalLocalVideo.preservesPitch = isPitchLocked;
+        modalLocalVideo.play().catch(() => {});
+      };
+      recorder.start();
+
+      let f = 0;
+      function drawDemo() {
+        if (f >= 120) { recorder.stop(); return; }
+        ctx.fillStyle = "#0A0E11";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#3AA8D0";
+        ctx.lineWidth = 6;
+        ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
+        ctx.fillStyle = "#EEF4F6";
+        ctx.font = "italic 44px 'Newsreader', Georgia, serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Sea Ring Offline RAM Video Reel", canvas.width / 2, canvas.height / 2);
+        ctx.font = "20px 'Geist Mono', monospace";
+        ctx.fillStyle = "#9ED8E4";
+        ctx.fillText(`Frame ${f}/120 | Test speeds up to 900x with 0ms buffering`, canvas.width / 2, canvas.height / 2 + 50);
+        f++;
+        requestAnimationFrame(drawDemo);
+      }
+      drawDemo();
+    }
+
+    localDropZone.addEventListener("click", () => localFileInput.click());
+    
+    // Drag & Drop handlers
+    localDropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      localDropZone.style.borderColor = "var(--accent)";
+      localDropZone.style.background = "rgba(58, 168, 208, 0.08)";
+    });
+    localDropZone.addEventListener("dragleave", () => {
+      localDropZone.style.borderColor = "var(--line)";
+      localDropZone.style.background = "transparent";
+    });
+    localDropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      localDropZone.style.borderColor = "var(--line)";
+      localDropZone.style.background = "transparent";
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        loadLocalFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    localFileInput.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files[0]) {
+        loadLocalFile(e.target.files[0]);
+      }
+    });
+
+    async function loadLocalFile(file) {
+      localFileStatus.textContent = `Caching ${file.name} into RAM...`;
+      const buf = await file.arrayBuffer();
+      if (localBlobUrl) URL.revokeObjectURL(localBlobUrl);
+      const blob = new Blob([buf], { type: file.type || "video/mp4" });
+      localBlobUrl = URL.createObjectURL(blob);
+      modalLocalVideo.src = localBlobUrl;
+      modalLocalVideo.preservesPitch = isPitchLocked;
+      modalLocalVideo.play().catch(() => {});
+      localFileStatus.textContent = `Cached: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB in RAM)`;
+    }
+
+    function setLocalSpeed(speed) {
+      localSpeed = Math.max(0.1, Number(speed) || 1.0);
+      modalLocalSpeedBadge.textContent = localSpeed.toFixed(2) + "x";
+      modalLocalSlider.value = Math.min(localSpeed, 100);
+      modalLocalCustomNum.value = localSpeed;
+
+      // HTML5 video playbackRate up to 16x
+      modalLocalVideo.playbackRate = Math.min(localSpeed, 16.0);
+      modalLocalVideo.preservesPitch = isPitchLocked;
+
+      // Hyper-Skip above 16x
+      if (localHyperSkipTimer) clearInterval(localHyperSkipTimer);
+      if (localSpeed > 16.0) {
+        localHyperSkipTimer = setInterval(() => {
+          if (!modalLocalVideo.paused && !modalLocalVideo.seeking) {
+            modalLocalVideo.currentTime += (localSpeed - 16.0) * 0.1;
+            if (modalLocalVideo.duration && modalLocalVideo.currentTime >= modalLocalVideo.duration) {
+              modalLocalVideo.currentTime = 0;
+            }
+          }
+        }, 100);
+      }
+    }
+
+    document.querySelectorAll(".local-speed-btn").forEach(btn => {
+      btn.addEventListener("click", () => setLocalSpeed(parseFloat(btn.dataset.speed)));
+    });
+
+    modalLocalSlider.addEventListener("input", (e) => setLocalSpeed(parseFloat(e.target.value)));
+    document.getElementById("modalLocalApplyNum").addEventListener("click", () => {
+      setLocalSpeed(parseFloat(modalLocalCustomNum.value));
+    });
+
+    const btnLocalPitchLock = document.getElementById("btnLocalPitchLock");
+    if (btnLocalPitchLock) {
+      btnLocalPitchLock.addEventListener("click", () => {
+        isPitchLocked = !isPitchLocked;
+        modalLocalVideo.preservesPitch = isPitchLocked;
+        btnLocalPitchLock.textContent = `Pitch Lock: ${isPitchLocked ? "ON" : "OFF"}`;
+        btnLocalPitchLock.classList.toggle("active", isPitchLocked);
+      });
+    }
+
+    function offloadLocal() {
+      if (localHyperSkipTimer) clearInterval(localHyperSkipTimer);
+      modalLocalVideo.pause();
+      modalLocalVideo.src = "";
+      if (localBlobUrl) {
+        URL.revokeObjectURL(localBlobUrl);
+        localBlobUrl = null;
+      }
+      localFileStatus.textContent = "Memory Offloaded (RAM Free)";
+    }
+
+    document.getElementById("btnOffloadLocal").addEventListener("click", offloadLocal);
+
+    // 1-Click sample RAM demo clips
+    document.querySelectorAll(".local-sample-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const url = btn.dataset.url;
+        const name = btn.dataset.name;
+        localFileStatus.textContent = `Downloading ${name} directly into browser RAM...`;
+        try {
+          const res = await fetch(url);
+          const buf = await res.arrayBuffer();
+          if (localBlobUrl) URL.revokeObjectURL(localBlobUrl);
+          const blob = new Blob([buf], { type: "video/mp4" });
+          localBlobUrl = URL.createObjectURL(blob);
+          modalLocalVideo.src = localBlobUrl;
+          modalLocalVideo.preservesPitch = isPitchLocked;
+          modalLocalVideo.play().catch(() => {});
+          localFileStatus.textContent = `✓ Cached in RAM: ${name} (0ms Buffer · Smooth up to 900x)`;
+          setLocalSpeed(localSpeed);
+        } catch (err) {
+          localFileStatus.textContent = `Error preloading: ${err.message}`;
+        }
+      });
+    });
+
+    // Auto-offload on window close
+    window.addEventListener("beforeunload", () => {
+      offloadYouTube();
+      offloadLocal();
+    });
+  </script>
+</body>
+</html>

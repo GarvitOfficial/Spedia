@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Cache & Temporary video downloads
+.spedia_cache/
+*.mp4
+*.webm
+*.part
+cookies.txt
+
+# Build output
+dist/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Environment & Editor
+.env
+.env.*
+.vscode/
+.idea/
