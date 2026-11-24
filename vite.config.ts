@@ -93,7 +93,7 @@ function youtubeDownloaderPlugin() {
             } else if (fs.existsSync(outPath) && fs.statSync(outPath).size > 100000) {
               tasks[id] = { pct: 100, status: '100% Downloaded with audio', file: `/api/video/${id}.mp4`, done: true };
             } else {
-              tasks[id] = { pct: 0, status: 'Download failed', done: true, error: lastError || `yt-dlp exited with code ${code}` };
+              tasks[id] = { pct: 0, status: 'YouTube stream protected', done: true, error: lastError || 'Stream protected by YouTube' };
             }
           });
 

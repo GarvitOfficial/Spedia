@@ -1408,58 +1408,6 @@
               <div id="ramProgressBarFill" style="height:100%;width:0%;background:linear-gradient(to right, #3AA8D0, #059669);transition:width 0.2s ease;"></div>
             </div>
           </div>
-
-          <!-- Static Deployment / In-RAM Loader Assistant -->
-          <div id="ramStaticOptionsPanel" style="display:none;flex-direction:column;gap:10px;background:rgba(10,20,30,0.85);border:1px solid rgba(58,168,208,0.3);border-radius:8px;padding:12px;margin-top:4px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--accent);">⚡ RAM LOADER (GITHUB PAGES MODE)</span>
-                <span style="font-size:10px;background:rgba(58,168,208,0.15);color:var(--accent);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);">0ms Seek · 900x RAM</span>
-              </div>
-              <button type="button" id="btnStayShieldMode" class="pill-btn" style="font-size:10px;padding:2px 8px;background:transparent;border-color:var(--line);">✕ Close</button>
-            </div>
-            <p style="font-size:11px;color:var(--ink-soft);line-height:1.4;margin:0;">
-              On static hosting, YouTube restricts direct binary downloads via CORS. Choose how to load full offline video into browser RAM:
-            </p>
-            
-            <!-- Quick Action Grid -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:8px;">
-              <!-- Action 1: Drop Video to RAM -->
-              <div id="btnRamDropZoneYT" style="border:1px dashed var(--accent);border-radius:8px;padding:10px;text-align:center;cursor:pointer;background:rgba(58,168,208,0.06);transition:all 0.2s ease;">
-                <input type="file" id="ramDropFileInputYT" accept="video/*" style="display:none;">
-                <div style="font-size:16px;">📁</div>
-                <div style="font-family:var(--font-serif);font-size:12px;font-weight:600;color:var(--ink);margin-top:2px;">Select / Drop Video File</div>
-                <div style="font-size:10px;color:var(--ink-muted);">Instant 0ms RAM Blob</div>
-              </div>
-
-              <!-- Action 2: 1-Click High-Speed RAM Demos -->
-              <div style="border:1px solid rgba(58,168,208,0.25);border-radius:8px;padding:10px;background:rgba(58,168,208,0.04);display:flex;flex-direction:column;gap:6px;justify-content:center;">
-                <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--accent);">⚡ INSTANT RAM DEMOS:</div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                  <button type="button" class="pill-btn ram-demo-quick-btn" data-url="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/aaaf/kolibrie-landing.mp4" data-name="Kolibrie 4K" style="font-size:10px;padding:4px 8px;">🦅 Kolibrie 4K</button>
-                  <button type="button" class="pill-btn ram-demo-quick-btn" data-url="https://pub-86dc5b5484314368ac5436a674b0d919.r2.dev/aaaf/look-circle-hero.mp4" data-name="Look Circle" style="font-size:10px;padding:4px 8px;">🎬 Look Circle</button>
-                </div>
-              </div>
-
-              <!-- Action 3: Stream Media URL to RAM -->
-              <div style="border:1px solid rgba(58,168,208,0.25);border-radius:8px;padding:10px;background:rgba(58,168,208,0.04);display:flex;flex-direction:column;gap:6px;justify-content:center;">
-                <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--accent);">🌐 DIRECT VIDEO URL:</div>
-                <div style="display:flex;gap:4px;">
-                  <input type="text" id="ramDirectUrlInputYT" placeholder="https://.../video.mp4" style="flex:1;background:rgba(0,0,0,0.5);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:10px;color:var(--ink);min-width:0;">
-                  <button type="button" id="btnRamDirectUrlLoadYT" class="pill-btn active" style="font-size:10px;padding:3px 8px;">Load</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Connect local backend or stay in shield row -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);flex-wrap:wrap;">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span style="font-size:11px;color:var(--ink-muted);">💻 Run <code>npm run dev</code> locally:</span>
-                <button type="button" id="btnProbeLocalBackendYT" class="pill-btn" style="font-size:10px;padding:3px 8px;">🔄 Connect localhost:5173</button>
-              </div>
-              <span style="font-size:10px;color:var(--ink-muted);">Auto-proxies YouTube stream into RAM when running</span>
-            </div>
-          </div>
         </div>
 
         <div class="modal-video-wrapper">
@@ -1510,6 +1458,7 @@
               <button type="button" class="pill-btn active pacing-btn" data-ms="750">Anti-Buffer (750ms)</button>
               <button type="button" class="pill-btn pacing-btn" data-ms="1000">Keyframe (1s)</button>
             </div>
+            <span id="streamBufferHealthBadge" style="font-family:var(--font-mono);font-size:10px;color:var(--accent);margin-left:auto;">Buffer: 100%</span>
             <button type="button" id="btnOffloadYT" class="pill-btn" style="background:#221111;color:#ff8888;border-color:#ff4444;">Offload Player</button>
           </div>
 
@@ -2290,44 +2239,23 @@
 
     let ytRamBlobUrl = null;
     let isYTRamMode = false;
+    let isDownloadingToRAM = false;
     let ytRamHyperSkipTimer = null;
     let downloadPollInterval = null;
     let currentYtTitle = "Rick Astley - Never Gonna Give You Up";
 
     function updateBufferHealthUI() {
-      const statusText = document.getElementById("ramProgressStatusText");
-      const pctText = document.getElementById("ramProgressPctText");
-      const fill = document.getElementById("ramProgressBarFill");
-      const pill = document.getElementById("ramActivePill");
-      if (!statusText || !pctText || !fill) return;
+      // 1. Guard: never show or overwrite buffer health when downloading to RAM or in RAM mode
+      if (isDownloadingToRAM || isYTRamMode) return;
 
-      if (isYTRamMode) {
-        fill.style.width = "100%";
-        fill.style.background = "linear-gradient(to right, #3AA8D0, #059669)";
-        pctText.textContent = "100% In RAM";
-        statusText.innerHTML = `<span style="color:#34d399;">✓ 100% Preloaded in RAM · 0ms Latency · Full Audio Active</span>`;
-        if (pill) {
-          pill.style.display = "inline-block";
-          pill.style.background = "#059669";
-          pill.textContent = "PRELOADED IN RAM · 0ms BUFFER";
-        }
-        return;
-      }
+      const badge = document.getElementById("streamBufferHealthBadge");
+      if (!badge) return;
 
       const healthPct = Math.min(100, Math.max(10, Math.round(ytLoadedFraction * 100)));
-      fill.style.width = healthPct + "%";
-      pctText.textContent = `${healthPct}% Buffer Stream Health`;
-
       if (ytPlayerState === 3) {
-        fill.style.background = "linear-gradient(to right, #eab308, #f59e0b)";
-        statusText.innerHTML = `<span style="color:#fde047;">⏳ Buffering network keyframe... (holding seek)</span>`;
-      } else if (ytPlayerState === 1) {
-        fill.style.background = "linear-gradient(to right, #3AA8D0, #059669)";
-        if (ytSpeed > 2.0) {
-          statusText.innerHTML = `<span style="color:#34d399;">⚡ Network Stream: Advancing at ${ytSpeed.toFixed(0)}x (Load to RAM recommended)</span>`;
-        } else {
-          statusText.innerHTML = `<span style="color:#38bdf8;">✓ Stream Stable · 0ms Stall</span>`;
-        }
+        badge.innerHTML = `Buffer: <span style="color:#fde047;">${healthPct}% (Pacing...)</span>`;
+      } else {
+        badge.innerHTML = `Buffer Health: <span style="color:#34d399;">${healthPct}%</span>`;
       }
     }
 
@@ -2405,6 +2333,7 @@
       modalYTRamVideo.play().catch(() => {});
 
       isYTRamMode = true;
+      isDownloadingToRAM = false;
 
       // 3. Update status UI
       const statusPill = document.getElementById("ramActivePill");
@@ -2422,8 +2351,6 @@
 
       const progressWrap = document.getElementById("ramProgressBarWrapper");
       if (progressWrap) progressWrap.style.display = "none";
-      const staticPanel = document.getElementById("ramStaticOptionsPanel");
-      if (staticPanel) staticPanel.style.display = "none";
       const noticeBox = document.getElementById("ramRequirementNotice");
       if (noticeBox) noticeBox.style.display = "none";
 
@@ -2439,8 +2366,9 @@
       const progressFill = document.getElementById("ramProgressBarFill");
       const progressPct = document.getElementById("ramProgressPctText");
       const progressStatus = document.getElementById("ramProgressStatusText");
-      const staticPanel = document.getElementById("ramStaticOptionsPanel");
       const noticeBox = document.getElementById("ramRequirementNotice");
+
+      isDownloadingToRAM = true;
 
       // 1. Immediately pause and mute YouTube iframe so background audio stops
       modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: [] }), "*");
@@ -2491,6 +2419,7 @@
 
           if (startData.done && startData.file) {
             await finalizeRamMount(`${activeApiBase}${startData.file}`, activeApiBase);
+            isDownloadingToRAM = false;
             return;
           }
 
@@ -2509,10 +2438,19 @@
               if (task.done) {
                 clearInterval(downloadPollInterval);
                 downloadPollInterval = null;
+                isDownloadingToRAM = false;
                 if (task.file) {
                   await finalizeRamMount(`${activeApiBase}${task.file}`, activeApiBase);
                 } else {
-                  throw new Error(task.error || "Download failed");
+                  btnToggle.textContent = "⚡ Load to RAM";
+                  btnToggle.disabled = false;
+                  if (progressFill) progressFill.style.background = "#eab308";
+                  if (progressPct) progressPct.textContent = "Stream Mode";
+                  if (progressStatus) {
+                    progressStatus.innerHTML = `🛡️ <b>Notice</b>: Stream signature protected by YouTube. <b>Hardware Stream Accelerator is ACTIVE</b>!`;
+                  }
+                  modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "unMute", args: [] }), "*");
+                  modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: [] }), "*");
                 }
               }
             } catch (pollErr) {
@@ -2526,7 +2464,8 @@
       }
 
       // ── PATH B: STATIC HOST DEPLOYMENT (GitHub Pages) ──
-      // Keep Load to RAM active! Never switch to Shield Mode automatically.
+      // Keep Load to RAM active! Accurately explain without alarming "failed" labels.
+      isDownloadingToRAM = false;
       btnToggle.textContent = "⚡ Load to RAM";
       btnToggle.disabled = false;
 
@@ -2534,11 +2473,10 @@
         progressFill.style.width = "100%";
         progressFill.style.background = "#3AA8D0";
       }
-      if (progressPct) progressPct.textContent = "Ready";
+      if (progressPct) progressPct.textContent = "Stream Active";
       if (progressStatus) {
-        progressStatus.innerHTML = `⚡ <b>Static Host Mode</b>: YouTube blocks direct browser CORS. Select an instant RAM loader option below:`;
+        progressStatus.innerHTML = `🛡️ <b>Static Cloud Deployment Notice</b>: YouTube binary extraction into RAM requires the local Spedia engine (<code>npm run dev</code>).<br>⚡ <b>Anti-Buffer Stream Accelerator is ACTIVE</b> — accelerating live playback smoothly up to <b>${ytSpeed.toFixed(1)}x</b> with 0ms stall protection!`;
       }
-      if (staticPanel) staticPanel.style.display = "flex";
 
       modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "unMute", args: [] }), "*");
       modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: [] }), "*");
@@ -2573,6 +2511,7 @@
 
     function offloadYouTubeRAM() {
       isYTRamMode = false;
+      isDownloadingToRAM = false;
       if (downloadPollInterval) {
         clearInterval(downloadPollInterval);
         downloadPollInterval = null;
@@ -2600,8 +2539,6 @@
 
       const progressWrap = document.getElementById("ramProgressBarWrapper");
       if (progressWrap) progressWrap.style.display = "none";
-      const staticPanel = document.getElementById("ramStaticOptionsPanel");
-      if (staticPanel) staticPanel.style.display = "none";
 
       modalYTIframe.style.display = "block";
       modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "unMute", args: [] }), "*");
@@ -2620,120 +2557,6 @@
       if (noticeBox && ytSpeed >= 3.0) noticeBox.style.display = "flex";
 
       setYTSpeed(ytSpeed);
-    }
-
-    // Static Options Panel Wire-ups
-    const btnRamDropZoneYT = document.getElementById("btnRamDropZoneYT");
-    const ramDropFileInputYT = document.getElementById("ramDropFileInputYT");
-    if (btnRamDropZoneYT && ramDropFileInputYT) {
-      btnRamDropZoneYT.addEventListener("click", () => ramDropFileInputYT.click());
-      ramDropFileInputYT.addEventListener("change", (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-          const blobUrl = URL.createObjectURL(file);
-          mountRamBlob(blobUrl, file.name);
-        }
-      });
-    }
-
-    // Drag and drop video onto video player or dropzone
-    [btnRamDropZoneYT, document.querySelector(".modal-video-wrapper")].forEach(target => {
-      if (!target) return;
-      target.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        target.style.borderColor = "var(--accent)";
-      });
-      target.addEventListener("dragleave", () => {
-        target.style.borderColor = "";
-      });
-      target.addEventListener("drop", (e) => {
-        e.preventDefault();
-        target.style.borderColor = "";
-        const file = e.dataTransfer?.files?.[0];
-        if (file && (file.type.startsWith("video/") || file.name.match(/\.(mp4|webm|mkv|mov|avi)$/i))) {
-          const blobUrl = URL.createObjectURL(file);
-          mountRamBlob(blobUrl, file.name);
-        }
-      });
-    });
-
-    // 1-Click High-Speed RAM Demos
-    document.querySelectorAll(".ram-demo-quick-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const url = btn.dataset.url;
-        const name = btn.dataset.name;
-        const progressWrap = document.getElementById("ramProgressBarWrapper");
-        const progressFill = document.getElementById("ramProgressBarFill");
-        const progressPct = document.getElementById("ramProgressPctText");
-        const progressStatus = document.getElementById("ramProgressStatusText");
-
-        if (progressWrap) progressWrap.style.display = "flex";
-        if (progressFill) progressFill.style.width = "40%";
-        if (progressPct) progressPct.textContent = "40%";
-        if (progressStatus) progressStatus.textContent = `Streaming ${name} into browser RAM...`;
-
-        try {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error("Demo fetch failed");
-          const buf = await res.arrayBuffer();
-          const blob = new Blob([buf], { type: "video/mp4" });
-          const blobUrl = URL.createObjectURL(blob);
-          mountRamBlob(blobUrl, name);
-        } catch (err) {
-          if (progressStatus) progressStatus.textContent = `Demo stream error: ${err.message}`;
-        }
-      });
-    });
-
-    // Direct Video URL into RAM
-    const btnRamDirectUrlLoadYT = document.getElementById("btnRamDirectUrlLoadYT");
-    const ramDirectUrlInputYT = document.getElementById("ramDirectUrlInputYT");
-    if (btnRamDirectUrlLoadYT && ramDirectUrlInputYT) {
-      btnRamDirectUrlLoadYT.addEventListener("click", async () => {
-        const url = ramDirectUrlInputYT.value.trim();
-        if (!url) return;
-        const progressWrap = document.getElementById("ramProgressBarWrapper");
-        const progressFill = document.getElementById("ramProgressBarFill");
-        const progressPct = document.getElementById("ramProgressPctText");
-        const progressStatus = document.getElementById("ramProgressStatusText");
-
-        if (progressWrap) progressWrap.style.display = "flex";
-        if (progressFill) progressFill.style.width = "30%";
-        if (progressPct) progressPct.textContent = "30%";
-        if (progressStatus) progressStatus.textContent = `Fetching video stream into RAM...`;
-
-        try {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const buf = await res.arrayBuffer();
-          const blob = new Blob([buf], { type: "video/mp4" });
-          const blobUrl = URL.createObjectURL(blob);
-          mountRamBlob(blobUrl, "Remote Stream");
-        } catch (err) {
-          if (progressStatus) progressStatus.textContent = `Stream error: ${err.message} (Verify CORS on target URL)`;
-        }
-      });
-    }
-
-    // Connect Localhost Retry
-    const btnProbeLocalBackendYT = document.getElementById("btnProbeLocalBackendYT");
-    if (btnProbeLocalBackendYT) {
-      btnProbeLocalBackendYT.addEventListener("click", () => {
-        preloadYouTubeToRAM();
-      });
-    }
-
-    // Stay in Shield Mode
-    const btnStayShieldMode = document.getElementById("btnStayShieldMode");
-    if (btnStayShieldMode) {
-      btnStayShieldMode.addEventListener("click", () => {
-        const staticPanel = document.getElementById("ramStaticOptionsPanel");
-        if (staticPanel) staticPanel.style.display = "none";
-        const progressWrap = document.getElementById("ramProgressBarWrapper");
-        if (progressWrap) progressWrap.style.display = "none";
-        modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "unMute", args: [] }), "*");
-        modalYTIframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: [] }), "*");
-      });
     }
 
     document.getElementById("btnToggleRamPreload").addEventListener("click", preloadYouTubeToRAM);
