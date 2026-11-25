@@ -16,7 +16,7 @@ A high-performance video acceleration workstation and tactile editorial interfac
 
 <br />
 
-<img src="./assets/headerPAge.png" alt="Spedia Home View" width="100%" style="border-radius: 12px; border: 1px solid rgba(238,244,246,0.12); box-shadow: 0 20px 50px rgba(0,0,0,0.5);" />
+<img src="./assets/headerPage.png" alt="Spedia Home View" width="100%" style="border-radius: 12px; border: 1px solid rgba(238,244,246,0.12); box-shadow: 0 20px 50px rgba(0,0,0,0.5);" />
 
 </div>
 
